@@ -6,7 +6,9 @@ toolchain go1.22.3
 
 require (
 	github.com/go-resty/resty/v2 v2.11.0
+	github.com/go-sql-driver/mysql v1.8.1
 	github.com/gorilla/mux v1.8.0
+	github.com/joho/godotenv v1.5.1
 	github.com/justinas/alice v1.2.0
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
