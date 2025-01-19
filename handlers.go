@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/patrickmn/go-cache"
 	"image"
 	"image/jpeg"
 	"net/http"
@@ -18,7 +19,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/nfnt/resize"
-	"github.com/patrickmn/go-cache"
+	_ "github.com/patrickmn/go-cache"
 	"github.com/vincent-petithory/dataurl"
 	"go.mau.fi/whatsmeow"
 	waProto "go.mau.fi/whatsmeow/binary/proto"
@@ -1729,6 +1730,90 @@ func (s *server) SendMessage() http.HandlerFunc {
 
 		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+
+		return
+	}
+}
+
+func (s *server) EditMessage() http.HandlerFunc {
+
+	type editStruct struct {
+		Phone     string
+		Body      string
+		MessageID string
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		userid, _ := strconv.Atoi(txtid)
+
+		if clientPointer[userid] == nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			return
+		}
+
+		decoder := json.NewDecoder(r.Body)
+		var e editStruct
+		err := decoder.Decode(&e)
+		if err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
+			return
+		}
+
+		if e.Phone == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
+			return
+		}
+
+		if e.Body == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Body in Payload"))
+			return
+		}
+
+		if e.MessageID == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing MessageID in Payload"))
+			return
+		}
+
+		recipient, err := validateMessageFields(e.Phone, nil, nil)
+		if err != nil {
+			log.Error().Msg(fmt.Sprintf("%s", err))
+			s.Respond(w, r, http.StatusBadRequest, err)
+			return
+		}
+
+		// Construir a mensagem editada
+		editMsg := clientPointer[userid].BuildEdit(
+			recipient,
+			e.MessageID,
+			&waProto.Message{
+				ExtendedTextMessage: &waProto.ExtendedTextMessage{
+					Text: &e.Body,
+				},
+			},
+		)
+
+		// Enviar a mensagem editada usando SendMessage
+		resp, err := clientPointer[userid].SendMessage(context.Background(), recipient, editMsg)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Error editing message: %v", err)))
+			return
+		}
+
+		log.Info().Str("MessageID", e.MessageID).Msg("Message edited successfully")
+		response := map[string]interface{}{
+			"Details":   "Edited",
+			"MessageID": e.MessageID,
+			"Timestamp": resp.Timestamp,
+			"ServerID":  resp.ServerID,
+		}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)
