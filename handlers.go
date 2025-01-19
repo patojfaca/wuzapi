@@ -1741,6 +1741,83 @@ func (s *server) SendMessage() http.HandlerFunc {
 	}
 }
 
+func (s *server) RevokeMessage() http.HandlerFunc {
+
+	type revokeStruct struct {
+		Phone     string `json:"phone"`
+		MessageID string `json:"messageId"`
+		Sender    string `json:"sender"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		userid, _ := strconv.Atoi(txtid)
+
+		if clientPointer[userid] == nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
+			return
+		}
+
+		decoder := json.NewDecoder(r.Body)
+		var req revokeStruct
+		err := decoder.Decode(&req)
+		if err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode payload"))
+			return
+		}
+
+		if req.Phone == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing phone in payload"))
+			return
+		}
+
+		if req.MessageID == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing messageId in payload"))
+			return
+		}
+
+		if req.Sender == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing sender in payload"))
+			return
+		}
+
+		recipient, err := validateMessageFields(req.Phone, nil, nil)
+		if err != nil {
+			log.Error().Msg(fmt.Sprintf("%s", err))
+			s.Respond(w, r, http.StatusBadRequest, err)
+			return
+		}
+
+		senderJID, _ := parseJID(req.Sender)
+
+		// Construir a mensagem de revogação
+		revokeMsg := clientPointer[userid].BuildRevoke(recipient, senderJID, req.MessageID)
+
+		// Enviar a mensagem de revogação
+		resp, err := clientPointer[userid].SendMessage(context.Background(), recipient, revokeMsg)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Error revoking message: %v", err)))
+			return
+		}
+
+		log.Info().Str("MessageID", req.MessageID).Msg("Message revoked successfully")
+		response := map[string]interface{}{
+			"Details":   "Revoked",
+			"MessageID": req.MessageID,
+			"Timestamp": resp.Timestamp,
+		}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+
+		return
+	}
+}
+
 func (s *server) EditMessage() http.HandlerFunc {
 
 	type editStruct struct {
