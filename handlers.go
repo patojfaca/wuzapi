@@ -637,12 +637,19 @@ func (s *server) SendDocument() http.HandlerFunc {
 			return
 		}
 
+		var mediaType string
+		mediaType = http.DetectContentType(filedata)
+		if filepath.Ext(*&t.FileName) == ".xlsx" {
+			mediaType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		}
+
 		msg := &waProto.Message{DocumentMessage: &waProto.DocumentMessage{
-			URL:           proto.String(uploaded.URL),
-			FileName:      &t.FileName,
-			DirectPath:    proto.String(uploaded.DirectPath),
-			MediaKey:      uploaded.MediaKey,
-			Mimetype:      proto.String(http.DetectContentType(filedata)),
+			URL:        proto.String(uploaded.URL),
+			FileName:   &t.FileName,
+			DirectPath: proto.String(uploaded.DirectPath),
+			MediaKey:   uploaded.MediaKey,
+			Mimetype:   proto.String(mediaType),
+			//Mimetype:      proto.String(http.DetectContentType(filedata)),
 			FileEncSHA256: uploaded.FileEncSHA256,
 			FileSHA256:    uploaded.FileSHA256,
 			FileLength:    proto.Uint64(uint64(len(filedata))),
@@ -690,6 +697,7 @@ func (s *server) SendAudio() http.HandlerFunc {
 		Caption     string
 		Id          string
 		Duration    string
+		Waveform    []int
 		ContextInfo waProto.ContextInfo
 	}
 
@@ -775,6 +783,19 @@ func (s *server) SendAudio() http.HandlerFunc {
 		// Converter float para uint32 (truncando o valor decimal)
 		uint32Value := uint32(durationFloat)
 
+		// Converte []int para []byte, se necessário
+		waveformBytes := make([]byte, len(t.Waveform))
+		maxValue := 100 // WhatsApp trabalha com valores entre 0-100
+
+		for i, val := range t.Waveform {
+			if val > maxValue {
+				val = maxValue // Garante que não ultrapasse 100
+			}
+			waveformBytes[i] = byte(val * 255 / maxValue) // Normaliza para 0-255
+		}
+
+		fmt.Printf("Waveform em bytes: %v\n", waveformBytes)
+
 		msg := &waProto.Message{AudioMessage: &waProto.AudioMessage{
 			URL:        proto.String(uploaded.URL),
 			DirectPath: proto.String(uploaded.DirectPath),
@@ -786,6 +807,7 @@ func (s *server) SendAudio() http.HandlerFunc {
 			FileLength:    proto.Uint64(uint64(len(filedata))),
 			PTT:           &ptt,
 			Seconds:       proto.Uint32(uint32Value),
+			Waveform:      waveformBytes,
 		}}
 
 		if t.ContextInfo.StanzaID != nil {
