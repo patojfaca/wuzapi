@@ -343,7 +343,11 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 	case *events.Message:
 		postmap["type"] = "Message"
 		dowebhook = 1
-		metaParts := []string{fmt.Sprintf("pushname: %s", evt.Info.PushName), fmt.Sprintf("timestamp: %s", evt.Info.Timestamp)}
+		metaParts := []string{
+			fmt.Sprintf("pushname: %s", evt.Info.PushName),
+			fmt.Sprintf("timestamp: %s", evt.Info.Timestamp),
+		}
+
 		if evt.Info.Type != "" {
 			metaParts = append(metaParts, fmt.Sprintf("type: %s", evt.Info.Type))
 		}
@@ -357,7 +361,11 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			metaParts = append(metaParts, "ephemeral")
 		}
 
-		log.Info().Str("id", evt.Info.ID).Str("source", evt.Info.SourceString()).Str("parts", strings.Join(metaParts, ", ")).Msg("Message Received")
+		/*log.Info().
+		Str("id", evt.Info.ID).
+		Str("source", evt.Info.SourceString()).
+		Str("parts", strings.Join(metaParts, ", ")).
+		Msg("Message Received")*/
 
 		// try to get Image if any
 		img := evt.Message.GetImageMessage()
@@ -465,7 +473,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		postmap["type"] = "ReadReceipt"
 		dowebhook = 1
 		if evt.Type == events.ReceiptTypeRead || evt.Type == events.ReceiptTypeReadSelf {
-			log.Info().Strs("id", evt.MessageIDs).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%d", evt.Timestamp)).Msg("Message was read")
+			//log.Info().Strs("id", evt.MessageIDs).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%d", evt.Timestamp)).Msg("Message was read")
 			if evt.Type == events.ReceiptTypeRead {
 				postmap["state"] = "Read"
 			} else {
@@ -473,7 +481,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			}
 		} else if evt.Type == events.ReceiptTypeDelivered {
 			postmap["state"] = "Delivered"
-			log.Info().Str("id", evt.MessageIDs[0]).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%d", evt.Timestamp)).Msg("Message delivered")
+			//log.Info().Str("id", evt.MessageIDs[0]).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%d", evt.Timestamp)).Msg("Message delivered")
 		} else {
 			// Discard webhooks for inactive or other delivery types
 			return
@@ -521,10 +529,10 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			log.Error().Err(err).Msg("Failed to write history sync")
 			return
 		}
-		log.Info().Str("filename", fileName).Msg("Wrote history sync")
+		//log.Info().Str("filename", fileName).Msg("Wrote history sync")
 		_ = file.Close()
 	case *events.AppState:
-		log.Info().Str("index", fmt.Sprintf("%+v", evt.Index)).Str("actionValue", fmt.Sprintf("%+v", evt.SyncActionValue)).Msg("App state event received")
+		//log.Info().Str("index", fmt.Sprintf("%+v", evt.Index)).Str("actionValue", fmt.Sprintf("%+v", evt.SyncActionValue)).Msg("App state event received")
 	case *events.LoggedOut:
 		log.Info().Str("reason", evt.Reason.String()).Msg("Logged out")
 		killchannel[mycli.userID] <- true
@@ -537,17 +545,22 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 	case *events.ChatPresence:
 		postmap["type"] = "ChatPresence"
 		dowebhook = 1
-		log.Info().Str("state", fmt.Sprintf("%s", evt.State)).Str("media", fmt.Sprintf("%s", evt.Media)).Str("chat", evt.MessageSource.Chat.String()).Str("sender", evt.MessageSource.Sender.String()).Msg("Chat Presence received")
+		/*log.Info().
+		Str("state", fmt.Sprintf("%s", evt.State)).
+		Str("media", fmt.Sprintf("%s", evt.Media)).
+		Str("chat", evt.MessageSource.Chat.String()).
+		Str("sender", evt.MessageSource.Sender.String()).
+		Msg("Chat Presence received")*/
 	case *events.CallOffer:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer")
+		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer")
 	case *events.CallAccept:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call accept")
+		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call accept")
 	case *events.CallTerminate:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call terminate")
+		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call terminate")
 	case *events.CallOfferNotice:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer notice")
+		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer notice")
 	case *events.CallRelayLatency:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call relay latency")
+		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call relay latency")
 	default:
 		log.Warn().Str("event", fmt.Sprintf("%+v", evt)).Msg("Unhandled event")
 	}
@@ -568,7 +581,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		}
 
 		if webhookurl != "" {
-			log.Info().Str("url", webhookurl).Msg("Calling webhook")
+			//log.Info().Str("url", webhookurl).Msg("Calling webhook")
 			values, _ := json.Marshal(postmap)
 			data := map[string]string{
 				"jsonData": string(values),

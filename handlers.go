@@ -2274,7 +2274,7 @@ func (s *server) GetAvatar() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("id", pic.ID).Str("url", pic.URL).Msg("Got avatar")
+		//log.Info().Str("id", pic.ID).Str("url", pic.URL).Msg("Got avatar")
 
 		responseJson, err := json.Marshal(pic)
 		if err != nil {
