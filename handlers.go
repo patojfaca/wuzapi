@@ -676,7 +676,7 @@ func (s *server) SendDocument() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp.Unix())).Str("id", msgid).Str("user", txtid).Str("connection", strings.ReplaceAll(r.Header.Get("token"), "_whatscontabiltoken", "")).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -794,7 +794,7 @@ func (s *server) SendAudio() http.HandlerFunc {
 			waveformBytes[i] = byte(val * 255 / maxValue) // Normaliza para 0-255
 		}
 
-		fmt.Printf("Waveform em bytes: %v\n", waveformBytes)
+		//fmt.Printf("Waveform em bytes: %v\n", waveformBytes)
 
 		msg := &waProto.Message{AudioMessage: &waProto.AudioMessage{
 			URL:        proto.String(uploaded.URL),
@@ -830,7 +830,7 @@ func (s *server) SendAudio() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp.Unix())).Str("id", msgid).Str("user", txtid).Str("connection", strings.ReplaceAll(r.Header.Get("token"), "_whatscontabiltoken", "")).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -981,7 +981,7 @@ func (s *server) SendImage() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp.Unix())).Str("id", msgid).Str("user", txtid).Str("connection", strings.ReplaceAll(r.Header.Get("token"), "_whatscontabiltoken", "")).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1099,7 +1099,7 @@ func (s *server) SendSticker() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp.Unix())).Str("id", msgid).Str("user", txtid).Str("connection", strings.ReplaceAll(r.Header.Get("token"), "_whatscontabiltoken", "")).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1219,7 +1219,7 @@ func (s *server) SendVideo() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp.Unix())).Str("id", msgid).Str("user", txtid).Str("connection", strings.ReplaceAll(r.Header.Get("token"), "_whatscontabiltoken", "")).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1313,7 +1313,7 @@ func (s *server) SendContact() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp.Unix())).Str("id", msgid).Str("user", txtid).Str("connection", strings.ReplaceAll(r.Header.Get("token"), "_whatscontabiltoken", "")).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1409,7 +1409,7 @@ func (s *server) SendLocation() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp.Unix())).Str("id", msgid).Str("user", txtid).Str("connection", strings.ReplaceAll(r.Header.Get("token"), "_whatscontabiltoken", "")).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1515,7 +1515,7 @@ func (s *server) SendButtons() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp.Unix())).Str("id", msgid).Str("user", txtid).Str("connection", strings.ReplaceAll(r.Header.Get("token"), "_whatscontabiltoken", "")).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1656,7 +1656,7 @@ func (s *server) SendList() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp.Unix())).Str("id", msgid).Str("user", txtid).Str("connection", strings.ReplaceAll(r.Header.Get("token"), "_whatscontabiltoken", "")).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1750,7 +1750,7 @@ func (s *server) SendMessage() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp.Unix())).Str("id", msgid).Str("user", txtid).Str("connection", strings.ReplaceAll(r.Header.Get("token"), "_whatscontabiltoken", "")).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -2071,7 +2071,7 @@ func (s *server) SendTemplate() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp.Unix())).Str("id", msgid).Str("user", txtid).Str("connection", strings.ReplaceAll(r.Header.Get("token"), "_whatscontabiltoken", "")).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -2780,7 +2780,7 @@ func (s *server) React() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp.Unix())).Str("id", msgid).Str("user", txtid).Str("connection", strings.ReplaceAll(r.Header.Get("token"), "_whatscontabiltoken", "")).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {

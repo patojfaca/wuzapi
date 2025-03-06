@@ -63,7 +63,7 @@ func (s *server) connectOnStartup() {
 			log.Error().Err(err).Msg("DB Problem")
 			return
 		} else {
-			log.Info().Str("token", token).Msg("Connect to Whatsapp on startup")
+			log.Info().Str("token", strings.ReplaceAll(token, "_whatscontabiltoken", "")).Msg("Connect to Whatsapp on startup")
 			v := Values{map[string]string{
 				"Id":      txtid,
 				"Jid":     jid,
@@ -93,7 +93,7 @@ func (s *server) connectOnStartup() {
 				}
 			}
 			eventstring := strings.Join(subscribedEvents, ",")
-			log.Info().Str("events", eventstring).Str("jid", jid).Msg("Attempt to connect")
+			log.Info().Str("events", eventstring).Str("jid", jid).Str("token", strings.ReplaceAll(token, "_whatscontabiltoken", "")).Msg("Attempt to connect")
 			killchannel[userid] = make(chan bool)
 			go s.startClient(userid, jid, token, subscribedEvents)
 		}
@@ -125,7 +125,7 @@ func parseJID(arg string) (types.JID, bool) {
 
 func (s *server) startClient(userID int, textjid string, token string, subscriptions []string) {
 
-	log.Info().Str("userid", strconv.Itoa(userID)).Str("jid", textjid).Msg("Starting websocket connection to Whatsapp")
+	log.Info().Str("userid", strconv.Itoa(userID)).Str("jid", textjid).Str("token", strings.ReplaceAll(token, "_whatscontabiltoken", "")).Msg("Starting websocket connection to Whatsapp")
 
 	var deviceStore *store.Device
 	var err error
@@ -249,7 +249,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 
 	} else {
 		// Already logged in, just connect
-		log.Info().Msg("Already logged in, just connect")
+		log.Info().Str("token", strings.ReplaceAll(token, "_whatscontabiltoken", "")).Msg("Already logged in, just connect")
 		err = client.Connect()
 		if err != nil {
 			panic(err)

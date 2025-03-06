@@ -21,4 +21,4 @@ WORKDIR /app
 #ENV DB_NAME=wuzapi
 #ENV DB_HOST=localhost
 #ENV DB_PORT=3306
-CMD [ "/app/server", "-logtype", "json" ]
+CMD [ "/app/server", "-logtype", "console", "-color", "true"]

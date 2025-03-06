@@ -56,7 +56,8 @@ func init() {
 		log = zerolog.New(os.Stdout).With().Timestamp().Str("role", filepath.Base(os.Args[0])).Logger()
 	} else {
 		output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339, NoColor: !*colorOutput}
-		log = zerolog.New(output).With().Timestamp().Str("role", filepath.Base(os.Args[0])).Logger()
+		log = zerolog.New(output).With().Timestamp().Logger()
+		//log = zerolog.New(output).With().Timestamp().Str("role", filepath.Base(os.Args[0])).Logger()
 	}
 
 	if *adminToken == "" {
