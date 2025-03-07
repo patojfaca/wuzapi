@@ -643,6 +643,10 @@ func (s *server) SendDocument() http.HandlerFunc {
 			mediaType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 		}
 
+		if filepath.Ext(*&t.FileName) == ".docx" {
+			mediaType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+		}
+
 		msg := &waProto.Message{DocumentMessage: &waProto.DocumentMessage{
 			URL:        proto.String(uploaded.URL),
 			FileName:   &t.FileName,
