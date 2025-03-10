@@ -384,17 +384,17 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 
 			data, err := mycli.WAClient.Download(img)
 			if err != nil {
-				log.Error().Err(err).Msg("Failed to download image")
+				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to download image")
 				return
 			}
 			exts, _ := mime.ExtensionsByType(img.GetMimetype())
 			path = filepath.Join(userDirectory, evt.Info.ID+exts[0])
 			err = os.WriteFile(path, data, 0600)
 			if err != nil {
-				log.Error().Err(err).Msg("Failed to save image")
+				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to save image")
 				return
 			}
-			log.Info().Str("path", path).Msg("Image saved")
+			log.Info().Str("path", path).Str("token", mycli.token).Msg("Image saved")
 		}
 
 		// try to get Audio if any
@@ -414,7 +414,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 
 			data, err := mycli.WAClient.Download(audio)
 			if err != nil {
-				log.Error().Err(err).Msg("Failed to download audio")
+				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to download audio")
 				return
 			}
 			exts, _ := mime.ExtensionsByType(audio.GetMimetype())
@@ -427,10 +427,10 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			path = filepath.Join(userDirectory, evt.Info.ID+ext)
 			err = os.WriteFile(path, data, 0600)
 			if err != nil {
-				log.Error().Err(err).Msg("Failed to save audio")
+				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to save audio")
 				return
 			}
-			log.Info().Str("path", path).Msg("Audio saved")
+			log.Info().Str("path", path).Str("token", mycli.token).Msg("Audio saved")
 		}
 
 		// try to get Document if any
@@ -450,7 +450,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 
 			data, err := mycli.WAClient.Download(document)
 			if err != nil {
-				log.Error().Err(err).Msg("Failed to download document")
+				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to download document")
 				return
 			}
 			extension := ""
@@ -464,10 +464,10 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			path = filepath.Join(userDirectory, evt.Info.ID+extension)
 			err = os.WriteFile(path, data, 0600)
 			if err != nil {
-				log.Error().Err(err).Msg("Failed to save document")
+				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to save document")
 				return
 			}
-			log.Info().Str("path", path).Msg("Document saved")
+			log.Info().Str("path", path).Str("token", mycli.token).Msg("Document saved")
 		}
 	case *events.Receipt:
 		postmap["type"] = "ReadReceipt"
