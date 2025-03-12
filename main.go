@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
+	"encoding/base64"
 	"flag"
 	"fmt"
+	"github.com/patrickmn/go-cache"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	waLog "go.mau.fi/whatsmeow/util/log"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,7 +21,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
-	"github.com/patrickmn/go-cache"
+	_ "github.com/patrickmn/go-cache"
 	"github.com/rs/zerolog"
 	_ "modernc.org/sqlite"
 )
@@ -34,10 +38,10 @@ var (
 	waDebug     = flag.String("wadebug", "", "Enable whatsmeow debug (INFO or DEBUG)")
 	logType     = flag.String("logtype", "console", "Type of log output (console or json)")
 	colorOutput = flag.Bool("color", false, "Enable colored output for console logs")
-	sslcert     = flag.String("sslcertificate", "", "SSL Certificate File")
-	sslprivkey  = flag.String("sslprivatekey", "", "SSL Certificate Private Key File")
-	adminToken  = flag.String("admintoken", "", "Security Token to authorize admin actions (list/create/remove users)")
-	container   *sqlstore.Container
+	//sslcert     = flag.String("sslcertificate", "", "SSL Certificate File")
+	//sslprivkey  = flag.String("sslprivatekey", "", "SSL Certificate Private Key File")
+	adminToken = flag.String("admintoken", "", "Security Token to authorize admin actions (list/create/remove users)")
+	container  *sqlstore.Container
 
 	killchannel   = make(map[int](chan bool))
 	userinfocache = cache.New(5*time.Minute, 10*time.Minute)
@@ -68,6 +72,25 @@ func init() {
 
 }
 
+func decodeBase64ToFile(encoded string) (string, error) {
+	data, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", err
+	}
+
+	tmpFile, err := ioutil.TempFile("", "cert-*.pem")
+	if err != nil {
+		return "", err
+	}
+	defer tmpFile.Close()
+
+	if _, err := tmpFile.Write(data); err != nil {
+		return "", err
+	}
+
+	return tmpFile.Name(), nil
+}
+
 func main() {
 
 	ex, err := os.Executable()
@@ -90,6 +113,10 @@ func main() {
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
+
+	certificateBase64 := os.Getenv("CERTIFICATE")
+	sslkeyBase64 := os.Getenv("SSLKEY")
+	//log.Info().Str("certificate", certificate).Str("sslkey", sslkey).Msg("certificate")
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", dbUser, dbPassword, dbHost, dbPort, dbName)
 
@@ -149,7 +176,50 @@ func main() {
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		if *sslcert != "" {
+		var certPath, keyPath string
+		var err error
+
+		if certificateBase64 != "" && sslkeyBase64 != "" {
+			certPath, err = decodeBase64ToFile(certificateBase64)
+			if err != nil {
+				log.Error().Msg("Erro ao decodificar certificado:")
+			}
+
+			keyPath, err = decodeBase64ToFile(sslkeyBase64)
+			if err != nil {
+				log.Error().Msg("Erro ao decodificar chave SSL:")
+			}
+		}
+
+		if certPath != "" && keyPath != "" {
+			srv := &http.Server{
+				Addr:              *address + ":443",
+				Handler:           s.router,
+				ReadHeaderTimeout: 20 * time.Second,
+				ReadTimeout:       60 * time.Second,
+				WriteTimeout:      120 * time.Second,
+				IdleTimeout:       180 * time.Second,
+			}
+
+			// Verifica se os arquivos são válidos
+			_, errCert := tls.LoadX509KeyPair(certPath, keyPath)
+			if errCert != nil {
+				log.Error().Msg("Erro ao carregar certificado SSL:")
+			}
+
+			// Inicia o servidor HTTPS
+			log.Info().Msg("Starting HTTPS server...")
+			if err := srv.ListenAndServeTLS(certPath, keyPath); err != nil && err != http.ErrServerClosed {
+				log.Error().Msg("Startup failed:")
+			}
+		} else {
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				//log.Fatalf("listen: %s\n", err)
+				log.Fatal().Err(err).Msg("Startup failed")
+			}
+		}
+
+		/*if *sslcert != "" {
 			if err := srv.ListenAndServeTLS(*sslcert, *sslprivkey); err != nil && err != http.ErrServerClosed {
 				//log.Fatalf("listen: %s\n", err)
 				log.Fatal().Err(err).Msg("Startup failed")
@@ -159,7 +229,7 @@ func main() {
 				//log.Fatalf("listen: %s\n", err)
 				log.Fatal().Err(err).Msg("Startup failed")
 			}
-		}
+		}*/
 	}()
 	//wlog.Infof("Server Started. Listening on %s:%s", *address, *port)
 	log.Info().Str("address", *address).Str("port", *port).Msg("Server Started")
