@@ -33,7 +33,7 @@ type server struct {
 }
 
 var (
-	address     = flag.String("address", "0.0.0.0", "Bind IP Address")
+	//address     = flag.String("address", "0.0.0.0", "Bind IP Address")
 	port        = flag.String("port", "9000", "Listen Port")
 	waDebug     = flag.String("wadebug", "", "Enable whatsmeow debug (INFO or DEBUG)")
 	logType     = flag.String("logtype", "console", "Type of log output (console or json)")
@@ -113,6 +113,10 @@ func main() {
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
+	address := os.Getenv("ADDRESS")
+	if address == "" {
+		address = "0.0.0.0"
+	}
 
 	certificateBase64 := os.Getenv("CERTIFICATE")
 	sslkeyBase64 := os.Getenv("SSLKEY")
@@ -164,7 +168,7 @@ func main() {
 	s.connectOnStartup()
 
 	srv := &http.Server{
-		Addr:              *address + ":" + *port,
+		Addr:              address + ":" + *port,
 		Handler:           s.router,
 		ReadHeaderTimeout: 20 * time.Second,
 		ReadTimeout:       60 * time.Second,
@@ -193,7 +197,7 @@ func main() {
 
 		if certPath != "" && keyPath != "" {
 			srv := &http.Server{
-				Addr:              *address + ":443",
+				Addr:              address + ":443",
 				Handler:           s.router,
 				ReadHeaderTimeout: 20 * time.Second,
 				ReadTimeout:       60 * time.Second,
@@ -210,7 +214,7 @@ func main() {
 			// Inicia o servidor HTTPS
 			log.Info().Msg("Starting HTTPS server...")
 			if err := srv.ListenAndServeTLS(certPath, keyPath); err != nil && err != http.ErrServerClosed {
-				log.Error().Msg("Startup failed:")
+				log.Error().Str("erro", err.Error()).Msg("Startup failed:")
 			}
 		} else {
 			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -232,7 +236,7 @@ func main() {
 		}*/
 	}()
 	//wlog.Infof("Server Started. Listening on %s:%s", *address, *port)
-	log.Info().Str("address", *address).Str("port", *port).Msg("Server Started")
+	log.Info().Str("address", address).Str("port", *port).Msg("Server Started")
 
 	<-done
 	log.Info().Msg("Server Stoped")
