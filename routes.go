@@ -20,8 +20,13 @@ func (s *server) routes() {
 	}
 	exPath := filepath.Dir(ex)
 
+	address := os.Getenv("ADDRESS")
+	if address == "" {
+		address = "0.0.0.0"
+	}
+
 	if *logType == "json" {
-		log = zerolog.New(os.Stdout).With().Timestamp().Str("role", filepath.Base(os.Args[0])).Str("host", *address).Logger()
+		log = zerolog.New(os.Stdout).With().Timestamp().Str("role", filepath.Base(os.Args[0])).Str("host", address).Logger()
 	} else {
 		output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339, NoColor: !*colorOutput}
 		log = zerolog.New(output).With().Timestamp().Logger()
