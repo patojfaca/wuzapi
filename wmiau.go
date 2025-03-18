@@ -554,10 +554,22 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		Msg("Chat Presence received")*/
 	case *events.CallOffer:
 		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer")
+		log.Info().Str("token", mycli.token).Msg("Got call offer")
+
+		/*err := mycli.WAClient.RejectCall(evt.From, evt.CallID)
+		if err != nil {
+			log.Error().Err(err).Str("token", mycli.token).Msg("Failed to reject call")
+			return
+		}*/
 	case *events.CallAccept:
+		log.Info().Str("token", mycli.token).Msg("Got call accept")
 		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call accept")
 	case *events.CallTerminate:
+		log.Info().Str("token", mycli.token).Msg("Got call terminate")
 		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call terminate")
+
+		postmap["type"] = "Call"
+		dowebhook = 1
 	case *events.CallOfferNotice:
 		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer notice")
 	case *events.CallRelayLatency:
