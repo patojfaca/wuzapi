@@ -21,8 +21,10 @@ import (
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/appstate"
 	waProto "go.mau.fi/whatsmeow/binary/proto"
+	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/store"
 	_ "modernc.org/sqlite"
+
 	//	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
@@ -277,6 +279,54 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	}
 }
 
+func downloadWithRetry(client *whatsmeow.Client, doc *waE2E.DocumentMessage, maxRetries int, delay time.Duration, token string) ([]byte, error) {
+	var data []byte
+	var err error
+
+	for i := 0; i < maxRetries; i++ {
+		data, err = client.Download(doc)
+		if err == nil {
+			return data, nil
+		}
+		log.Warn().Err(err).Str("token", token).Int("attempt", i+1).Msg("Failed to download document, retrying...")
+		time.Sleep(delay)
+	}
+
+	return nil, fmt.Errorf("failed after %d attempts: %w", maxRetries, err)
+}
+
+func downloadImageWithRetry(client *whatsmeow.Client, doc *waE2E.ImageMessage, maxRetries int, delay time.Duration, token string) ([]byte, error) {
+	var data []byte
+	var err error
+
+	for i := 0; i < maxRetries; i++ {
+		data, err = client.Download(doc)
+		if err == nil {
+			return data, nil
+		}
+		log.Warn().Err(err).Str("token", token).Int("attempt", i+1).Msg("Failed to download image, retrying...")
+		time.Sleep(delay)
+	}
+
+	return nil, fmt.Errorf("failed d.i. after %d attempts: %w", maxRetries, err)
+}
+
+func downloadAudioWithRetry(client *whatsmeow.Client, doc *waE2E.AudioMessage, maxRetries int, delay time.Duration, token string) ([]byte, error) {
+	var data []byte
+	var err error
+
+	for i := 0; i < maxRetries; i++ {
+		data, err = client.Download(doc)
+		if err == nil {
+			return data, nil
+		}
+		log.Warn().Err(err).Str("token", token).Int("attempt", i+1).Msg("Failed to download audio, retrying...")
+		time.Sleep(delay)
+	}
+
+	return nil, fmt.Errorf("failed d.a. after %d attempts: %w", maxRetries, err)
+}
+
 func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 	txtid := strconv.Itoa(mycli.userID)
 	postmap := make(map[string]interface{})
@@ -347,6 +397,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		metaParts := []string{
 			fmt.Sprintf("pushname: %s", evt.Info.PushName),
 			fmt.Sprintf("timestamp: %s", evt.Info.Timestamp),
+			fmt.Sprintf("chat: %s", evt.Info.Chat),
 		}
 
 		if evt.Info.Type != "" {
@@ -383,9 +434,14 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 			}
 
-			data, err := mycli.WAClient.Download(img)
+			/* data, err := mycli.WAClient.Download(img)
 			if err != nil {
 				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to download image")
+				return
+			} */
+			data, err := downloadImageWithRetry(mycli.WAClient, img, 3, 2*time.Second, mycli.token)
+			if err != nil {
+				log.Error().Err(err).Str("token", mycli.token).Str("parts", strings.Join(metaParts, ",")).Msg("Download image failed after retries")
 				return
 			}
 			exts, _ := mime.ExtensionsByType(img.GetMimetype())
@@ -413,9 +469,14 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 			}
 
-			data, err := mycli.WAClient.Download(audio)
+			/* data, err := mycli.WAClient.Download(audio)
 			if err != nil {
 				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to download audio")
+				return
+			} */
+			data, err := downloadAudioWithRetry(mycli.WAClient, audio, 3, 2*time.Second, mycli.token)
+			if err != nil {
+				log.Error().Err(err).Str("token", mycli.token).Str("parts", strings.Join(metaParts, ",")).Msg("Download audio failed after retries")
 				return
 			}
 			exts, _ := mime.ExtensionsByType(audio.GetMimetype())
@@ -449,9 +510,15 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 			}
 
-			data, err := mycli.WAClient.Download(document)
+			/* data, err := mycli.WAClient.Download(document)
 			if err != nil {
 				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to download document")
+				return
+			} */
+
+			data, err := downloadWithRetry(mycli.WAClient, document, 3, 2*time.Second, mycli.token)
+			if err != nil {
+				log.Error().Err(err).Str("token", mycli.token).Str("parts", strings.Join(metaParts, ",")).Msg("Download failed after retries")
 				return
 			}
 			extension := ""

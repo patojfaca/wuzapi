@@ -7,9 +7,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"github.com/patrickmn/go-cache"
-	"go.mau.fi/whatsmeow/store/sqlstore"
-	waLog "go.mau.fi/whatsmeow/util/log"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -17,6 +14,10 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"github.com/patrickmn/go-cache"
+	"go.mau.fi/whatsmeow/store/sqlstore"
+	waLog "go.mau.fi/whatsmeow/util/log"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
@@ -37,7 +38,7 @@ var (
 	port        = flag.String("port", "9000", "Listen Port")
 	waDebug     = flag.String("wadebug", "", "Enable whatsmeow debug (INFO or DEBUG)")
 	logType     = flag.String("logtype", "console", "Type of log output (console or json)")
-	colorOutput = flag.Bool("color", false, "Enable colored output for console logs")
+	colorOutput = flag.Bool("color", true, "Enable colored output for console logs")
 	//sslcert     = flag.String("sslcertificate", "", "SSL Certificate File")
 	//sslprivkey  = flag.String("sslprivatekey", "", "SSL Certificate Private Key File")
 	adminToken = flag.String("admintoken", "", "Security Token to authorize admin actions (list/create/remove users)")
