@@ -1,18 +1,21 @@
 package main
 
 import (
-	"github.com/justinas/alice"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/hlog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/justinas/alice"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/hlog"
 )
 
 type Middleware = alice.Constructor
 
 func (s *server) routes() {
+
+	s.router.Use(s.recoveryMiddleware)
 
 	ex, err := os.Executable()
 	if err != nil {

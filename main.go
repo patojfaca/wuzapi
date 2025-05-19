@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -90,6 +91,19 @@ func decodeBase64ToFile(encoded string) (string, error) {
 	}
 
 	return tmpFile.Name(), nil
+}
+
+func (s *server) recoveryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Error().Interface("panic", rec).Msg("Recovered from panic")
+				s.connectOnStartup()
+				s.Respond(w, r, http.StatusInternalServerError, errors.New("Internal Server Error"))
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 func main() {

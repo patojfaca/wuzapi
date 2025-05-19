@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/patrickmn/go-cache"
 	"image"
 	"image/jpeg"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/patrickmn/go-cache"
 
 	"github.com/gorilla/mux"
 	"github.com/nfnt/resize"
@@ -554,6 +555,15 @@ func (s *server) GetStatus() http.HandlerFunc {
 		}
 		return
 	}
+}
+
+func (s *server) CheckStatus(userId int) (connected bool, loggedIn bool, err error) {
+	client := clientPointer[userId]
+	if client == nil {
+		return false, false, errors.New("no session")
+	}
+
+	return client.IsConnected(), client.IsLoggedIn(), nil
 }
 
 // Sends a document/attachment message
