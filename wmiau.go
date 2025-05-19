@@ -181,7 +181,19 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	if *waDebug == "DEBUG" {
 		clientHttp[userID].SetDebug(true)
 	}
-	clientHttp[userID].SetTimeout(15 * time.Second)
+
+	clientHttp[userID].SetTimeout(30 * time.Second)
+	clientHttp[userID].SetRetryCount(3)
+	clientHttp[userID].SetRetryWaitTime(2 * time.Second)
+	clientHttp[userID].SetRetryMaxWaitTime(10 * time.Second)
+	clientHttp[userID].AddRetryHook(func(r *resty.Response, err error) {
+		if r != nil {
+			log.Warn().Str("url", r.Request.URL).Str("status", r.Status()).Msg("Retrying request")
+		} else {
+			log.Warn().Err(err).Msg("Retrying request")
+		}
+	})
+
 	clientHttp[userID].SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 	clientHttp[userID].OnError(func(req *resty.Request, err error) {
 		if v, ok := err.(*resty.ResponseError); ok {
