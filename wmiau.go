@@ -44,6 +44,7 @@ type MyClient struct {
 	token          string
 	subscriptions  []string
 	db             *sql.DB
+	server         *server
 }
 
 // Connects to Whatsapp Websocket on server startup if last state was connected
@@ -172,7 +173,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 		client = whatsmeow.NewClient(deviceStore, nil)
 	}
 	clientPointer[userID] = client
-	mycli := MyClient{client, 1, userID, token, subscriptions, s.db}
+	mycli := MyClient{client, 1, userID, token, subscriptions, s.db, s}
 	mycli.eventHandlerID = mycli.WAClient.AddEventHandler(mycli.myEventHandler)
 
 	//clientHttp[userID] = resty.New().EnableTrace()
@@ -352,88 +353,246 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 	}
 	exPath := filepath.Dir(ex)
 
-	switch evt := rawEvt.(type) {
-	case *events.AppStateSyncComplete:
-		if len(mycli.WAClient.Store.PushName) > 0 && evt.Name == appstate.WAPatchCriticalBlock {
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error().Interface("panic", r).Str("token", mycli.token).Msg("Recovered from panic in Message event")
+				// Attempt to reconnect
+				mycli.server.connectOnStartup()
+			}
+		}()
+
+		switch evt := rawEvt.(type) {
+		case *events.AppStateSyncComplete:
+			if len(mycli.WAClient.Store.PushName) > 0 && evt.Name == appstate.WAPatchCriticalBlock {
+				err := mycli.WAClient.SendPresence(types.PresenceAvailable)
+				if err != nil {
+					log.Warn().Err(err).Msg("Failed to send available presence")
+				} else {
+					log.Info().Msg("Marked self as available")
+				}
+			}
+		case *events.Connected, *events.PushNameSetting:
+			if len(mycli.WAClient.Store.PushName) == 0 {
+				return
+			}
+			// Send presence available when connecting and when the pushname is changed.
+			// This makes sure that outgoing messages always have the right pushname.
 			err := mycli.WAClient.SendPresence(types.PresenceAvailable)
 			if err != nil {
 				log.Warn().Err(err).Msg("Failed to send available presence")
 			} else {
 				log.Info().Msg("Marked self as available")
 			}
-		}
-	case *events.Connected, *events.PushNameSetting:
-		if len(mycli.WAClient.Store.PushName) == 0 {
+			sqlStmt := `UPDATE users SET connected=1 WHERE id=?`
+			_, err = mycli.db.Exec(sqlStmt, mycli.userID)
+			if err != nil {
+				log.Error().Err(err).Msg(sqlStmt)
+				return
+			}
+		case *events.PairSuccess:
+			log.Info().Str("userid", strconv.Itoa(mycli.userID)).Str("token", mycli.token).Str("ID", evt.ID.String()).Str("BusinessName", evt.BusinessName).Str("Platform", evt.Platform).Msg("QR Pair Success")
+			jid := evt.ID
+			sqlStmt := `UPDATE users SET jid=? WHERE id=?`
+			_, err := mycli.db.Exec(sqlStmt, jid, mycli.userID)
+			if err != nil {
+				log.Error().Err(err).Msg(sqlStmt)
+				return
+			}
+
+			myuserinfo, found := userinfocache.Get(mycli.token)
+			if !found {
+				log.Warn().Msg("No user info cached on pairing?")
+			} else {
+				txtid := myuserinfo.(Values).Get("Id")
+				token := myuserinfo.(Values).Get("Token")
+				v := updateUserInfo(myuserinfo, "Jid", fmt.Sprintf("%s", jid))
+				userinfocache.Set(token, v, cache.NoExpiration)
+				log.Info().Str("jid", jid.String()).Str("userid", txtid).Str("token", token).Msg("User information set")
+			}
+		case *events.StreamReplaced:
+			log.Info().Msg("Received StreamReplaced event")
 			return
-		}
-		// Send presence available when connecting and when the pushname is changed.
-		// This makes sure that outgoing messages always have the right pushname.
-		err := mycli.WAClient.SendPresence(types.PresenceAvailable)
-		if err != nil {
-			log.Warn().Err(err).Msg("Failed to send available presence")
-		} else {
-			log.Info().Msg("Marked self as available")
-		}
-		sqlStmt := `UPDATE users SET connected=1 WHERE id=?`
-		_, err = mycli.db.Exec(sqlStmt, mycli.userID)
-		if err != nil {
-			log.Error().Err(err).Msg(sqlStmt)
-			return
-		}
-	case *events.PairSuccess:
-		log.Info().Str("userid", strconv.Itoa(mycli.userID)).Str("token", mycli.token).Str("ID", evt.ID.String()).Str("BusinessName", evt.BusinessName).Str("Platform", evt.Platform).Msg("QR Pair Success")
-		jid := evt.ID
-		sqlStmt := `UPDATE users SET jid=? WHERE id=?`
-		_, err := mycli.db.Exec(sqlStmt, jid, mycli.userID)
-		if err != nil {
-			log.Error().Err(err).Msg(sqlStmt)
-			return
-		}
+		case *events.Message:
+			postmap["type"] = "Message"
+			dowebhook = 1
+			metaParts := []string{
+				fmt.Sprintf("pushname: %s", evt.Info.PushName),
+				fmt.Sprintf("timestamp: %s", evt.Info.Timestamp),
+				fmt.Sprintf("chat: %s", evt.Info.Chat),
+			}
 
-		myuserinfo, found := userinfocache.Get(mycli.token)
-		if !found {
-			log.Warn().Msg("No user info cached on pairing?")
-		} else {
-			txtid := myuserinfo.(Values).Get("Id")
-			token := myuserinfo.(Values).Get("Token")
-			v := updateUserInfo(myuserinfo, "Jid", fmt.Sprintf("%s", jid))
-			userinfocache.Set(token, v, cache.NoExpiration)
-			log.Info().Str("jid", jid.String()).Str("userid", txtid).Str("token", token).Msg("User information set")
-		}
-	case *events.StreamReplaced:
-		log.Info().Msg("Received StreamReplaced event")
-		return
-	case *events.Message:
-		postmap["type"] = "Message"
-		dowebhook = 1
-		metaParts := []string{
-			fmt.Sprintf("pushname: %s", evt.Info.PushName),
-			fmt.Sprintf("timestamp: %s", evt.Info.Timestamp),
-			fmt.Sprintf("chat: %s", evt.Info.Chat),
-		}
+			if evt.Info.Type != "" {
+				metaParts = append(metaParts, fmt.Sprintf("type: %s", evt.Info.Type))
+			}
+			if evt.Info.Category != "" {
+				metaParts = append(metaParts, fmt.Sprintf("category: %s", evt.Info.Category))
+			}
+			if evt.IsViewOnce {
+				metaParts = append(metaParts, "view once")
+			}
+			if evt.IsViewOnce {
+				metaParts = append(metaParts, "ephemeral")
+			}
 
-		if evt.Info.Type != "" {
-			metaParts = append(metaParts, fmt.Sprintf("type: %s", evt.Info.Type))
-		}
-		if evt.Info.Category != "" {
-			metaParts = append(metaParts, fmt.Sprintf("category: %s", evt.Info.Category))
-		}
-		if evt.IsViewOnce {
-			metaParts = append(metaParts, "view once")
-		}
-		if evt.IsViewOnce {
-			metaParts = append(metaParts, "ephemeral")
-		}
+			/*log.Info().
+			Str("id", evt.Info.ID).
+			Str("source", evt.Info.SourceString()).
+			Str("parts", strings.Join(metaParts, ", ")).
+			Msg("Message Received")*/
 
-		/*log.Info().
-		Str("id", evt.Info.ID).
-		Str("source", evt.Info.SourceString()).
-		Str("parts", strings.Join(metaParts, ", ")).
-		Msg("Message Received")*/
+			// try to get Image if any
+			img := evt.Message.GetImageMessage()
+			if img != nil {
 
-		// try to get Image if any
-		img := evt.Message.GetImageMessage()
-		if img != nil {
+				// check/creates user directory for files
+				userDirectory := filepath.Join(exPath, "files", "user_"+txtid)
+				_, err := os.Stat(userDirectory)
+				if os.IsNotExist(err) {
+					errDir := os.MkdirAll(userDirectory, 0751)
+					if errDir != nil {
+						log.Error().Err(errDir).Msg("Could not create user directory")
+						return
+					}
+				}
+
+				/* data, err := mycli.WAClient.Download(img)
+				if err != nil {
+					log.Error().Err(err).Str("token", mycli.token).Msg("Failed to download image")
+					return
+				} */
+				data, err := downloadImageWithRetry(mycli.WAClient, img, 3, 2*time.Second, mycli.token)
+				if err != nil {
+					log.Error().Err(err).Str("token", mycli.token).Str("parts", strings.Join(metaParts, ",")).Msg("Download image failed after retries")
+					return
+				}
+				exts, _ := mime.ExtensionsByType(img.GetMimetype())
+				path = filepath.Join(userDirectory, evt.Info.ID+exts[0])
+				err = os.WriteFile(path, data, 0600)
+				if err != nil {
+					log.Error().Err(err).Str("token", mycli.token).Msg("Failed to save image")
+					return
+				}
+				log.Info().Str("path", path).Str("token", mycli.token).Msg("Image saved")
+			}
+
+			// try to get Audio if any
+			audio := evt.Message.GetAudioMessage()
+			if audio != nil {
+
+				// check/creates user directory for files
+				userDirectory := filepath.Join(exPath, "files", "user_"+txtid)
+				_, err := os.Stat(userDirectory)
+				if os.IsNotExist(err) {
+					errDir := os.MkdirAll(userDirectory, 0751)
+					if errDir != nil {
+						log.Error().Err(errDir).Msg("Could not create user directory")
+						return
+					}
+				}
+
+				/* data, err := mycli.WAClient.Download(audio)
+				if err != nil {
+					log.Error().Err(err).Str("token", mycli.token).Msg("Failed to download audio")
+					return
+				} */
+				data, err := downloadAudioWithRetry(mycli.WAClient, audio, 3, 2*time.Second, mycli.token)
+				if err != nil {
+					log.Error().Err(err).Str("token", mycli.token).Str("parts", strings.Join(metaParts, ",")).Msg("Download audio failed after retries")
+					return
+				}
+				exts, _ := mime.ExtensionsByType(audio.GetMimetype())
+				var ext string
+				if len(exts) > 0 {
+					ext = exts[0]
+				} else {
+					ext = ".ogg"
+				}
+				path = filepath.Join(userDirectory, evt.Info.ID+ext)
+				err = os.WriteFile(path, data, 0600)
+				if err != nil {
+					log.Error().Err(err).Str("token", mycli.token).Msg("Failed to save audio")
+					return
+				}
+				log.Info().Str("path", path).Str("token", mycli.token).Msg("Audio saved")
+			}
+
+			// try to get Document if any
+			document := evt.Message.GetDocumentMessage()
+			if document != nil {
+
+				// check/creates user directory for files
+				userDirectory := filepath.Join(exPath, "files", "user_"+txtid)
+				_, err := os.Stat(userDirectory)
+				if os.IsNotExist(err) {
+					errDir := os.MkdirAll(userDirectory, 0751)
+					if errDir != nil {
+						log.Error().Err(errDir).Msg("Could not create user directory")
+						return
+					}
+				}
+
+				/* data, err := mycli.WAClient.Download(document)
+				if err != nil {
+					log.Error().Err(err).Str("token", mycli.token).Msg("Failed to download document")
+					return
+				} */
+
+				data, err := downloadWithRetry(mycli.WAClient, document, 3, 2*time.Second, mycli.token)
+				if err != nil {
+					log.Error().Err(err).Str("token", mycli.token).Str("parts", strings.Join(metaParts, ",")).Msg("Download failed after retries")
+					return
+				}
+				extension := ""
+				exts, err := mime.ExtensionsByType(document.GetMimetype())
+				if err != nil {
+					extension = exts[0]
+				} else {
+					filename := document.FileName
+					extension = filepath.Ext(*filename)
+				}
+				path = filepath.Join(userDirectory, evt.Info.ID+extension)
+				err = os.WriteFile(path, data, 0600)
+				if err != nil {
+					log.Error().Err(err).Str("token", mycli.token).Msg("Failed to save document")
+					return
+				}
+				log.Info().Str("path", path).Str("token", mycli.token).Msg("Document saved")
+			}
+		case *events.Receipt:
+			postmap["type"] = "ReadReceipt"
+			dowebhook = 1
+			if evt.Type == events.ReceiptTypeRead || evt.Type == events.ReceiptTypeReadSelf {
+				//log.Info().Strs("id", evt.MessageIDs).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%d", evt.Timestamp)).Msg("Message was read")
+				if evt.Type == events.ReceiptTypeRead {
+					postmap["state"] = "Read"
+				} else {
+					postmap["state"] = "ReadSelf"
+				}
+			} else if evt.Type == events.ReceiptTypeDelivered {
+				postmap["state"] = "Delivered"
+				//log.Info().Str("id", evt.MessageIDs[0]).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%d", evt.Timestamp)).Msg("Message delivered")
+			} else {
+				// Discard webhooks for inactive or other delivery types
+				return
+			}
+		case *events.Presence:
+			postmap["type"] = "Presence"
+			dowebhook = 1
+			if evt.Unavailable {
+				postmap["state"] = "offline"
+				if evt.LastSeen.IsZero() {
+					log.Info().Str("from", evt.From.String()).Msg("User is now offline")
+				} else {
+					log.Info().Str("from", evt.From.String()).Str("lastSeen", fmt.Sprintf("%d", evt.LastSeen)).Msg("User is now offline")
+				}
+			} else {
+				postmap["state"] = "online"
+				log.Info().Str("from", evt.From.String()).Msg("User is now online")
+			}
+		case *events.HistorySync:
+			postmap["type"] = "HistorySync"
+			dowebhook = 1
 
 			// check/creates user directory for files
 			userDirectory := filepath.Join(exPath, "files", "user_"+txtid)
@@ -446,256 +605,108 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 			}
 
-			/* data, err := mycli.WAClient.Download(img)
+			id := atomic.AddInt32(&historySyncID, 1)
+			fileName := filepath.Join(userDirectory, "history-"+strconv.Itoa(int(id))+".json")
+			file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0600)
 			if err != nil {
-				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to download image")
-				return
-			} */
-			data, err := downloadImageWithRetry(mycli.WAClient, img, 3, 2*time.Second, mycli.token)
-			if err != nil {
-				log.Error().Err(err).Str("token", mycli.token).Str("parts", strings.Join(metaParts, ",")).Msg("Download image failed after retries")
+				log.Error().Err(err).Msg("Failed to open file to write history sync")
 				return
 			}
-			exts, _ := mime.ExtensionsByType(img.GetMimetype())
-			path = filepath.Join(userDirectory, evt.Info.ID+exts[0])
-			err = os.WriteFile(path, data, 0600)
+			enc := json.NewEncoder(file)
+			enc.SetIndent("", "  ")
+			err = enc.Encode(evt.Data)
 			if err != nil {
-				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to save image")
+				log.Error().Err(err).Msg("Failed to write history sync")
 				return
 			}
-			log.Info().Str("path", path).Str("token", mycli.token).Msg("Image saved")
+			//log.Info().Str("filename", fileName).Msg("Wrote history sync")
+			_ = file.Close()
+		case *events.AppState:
+			//log.Info().Str("index", fmt.Sprintf("%+v", evt.Index)).Str("actionValue", fmt.Sprintf("%+v", evt.SyncActionValue)).Msg("App state event received")
+		case *events.LoggedOut:
+			log.Info().Str("reason", evt.Reason.String()).Msg("Logged out")
+			killchannel[mycli.userID] <- true
+			sqlStmt := `UPDATE users SET connected=0 WHERE id=?`
+			_, err := mycli.db.Exec(sqlStmt, mycli.userID)
+			if err != nil {
+				log.Error().Err(err).Msg(sqlStmt)
+				return
+			}
+		case *events.ChatPresence:
+			postmap["type"] = "ChatPresence"
+			dowebhook = 1
+			/*log.Info().
+			Str("state", fmt.Sprintf("%s", evt.State)).
+			Str("media", fmt.Sprintf("%s", evt.Media)).
+			Str("chat", evt.MessageSource.Chat.String()).
+			Str("sender", evt.MessageSource.Sender.String()).
+			Msg("Chat Presence received")*/
+		case *events.CallOffer:
+			//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer")
+			log.Info().Str("token", mycli.token).Msg("Got call offer")
+
+			/*err := mycli.WAClient.RejectCall(evt.From, evt.CallID)
+			if err != nil {
+				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to reject call")
+				return
+			}*/
+		case *events.CallAccept:
+			log.Info().Str("token", mycli.token).Msg("Got call accept")
+			//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call accept")
+		case *events.CallTerminate:
+			log.Info().Str("token", mycli.token).Msg("Got call terminate")
+			//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call terminate")
+
+			postmap["type"] = "Call"
+			dowebhook = 1
+		case *events.CallOfferNotice:
+			//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer notice")
+		case *events.CallRelayLatency:
+			//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call relay latency")
+		default:
+			log.Warn().Str("event", fmt.Sprintf("%+v", evt)).Msg("Unhandled event")
 		}
 
-		// try to get Audio if any
-		audio := evt.Message.GetAudioMessage()
-		if audio != nil {
+		if dowebhook == 1 {
+			// call webhook
+			webhookurl := ""
+			myuserinfo, found := userinfocache.Get(mycli.token)
+			if !found {
+				log.Warn().Str("token", mycli.token).Msg("Could not call webhook as there is no user for this token")
+			} else {
+				webhookurl = myuserinfo.(Values).Get("Webhook")
+			}
 
-			// check/creates user directory for files
-			userDirectory := filepath.Join(exPath, "files", "user_"+txtid)
-			_, err := os.Stat(userDirectory)
-			if os.IsNotExist(err) {
-				errDir := os.MkdirAll(userDirectory, 0751)
-				if errDir != nil {
-					log.Error().Err(errDir).Msg("Could not create user directory")
-					return
+			if !Find(mycli.subscriptions, postmap["type"].(string)) && !Find(mycli.subscriptions, "All") {
+				log.Warn().Str("type", postmap["type"].(string)).Msg("Skipping webhook. Not subscribed for this type")
+				return
+			}
+
+			if webhookurl != "" {
+				//log.Info().Str("url", webhookurl).Msg("Calling webhook")
+				values, _ := json.Marshal(postmap)
+				data := map[string]string{
+					"jsonData": string(values),
+					"token":    mycli.token,
 				}
-			}
+				if path == "" {
+					go callHook(webhookurl, data, mycli.userID)
+				} else {
+					// Create a channel to capture error from the goroutine
+					errChan := make(chan error, 1)
+					go func() {
+						err := callHookFile(webhookurl, data, mycli.userID, path)
+						errChan <- err
+					}()
 
-			/* data, err := mycli.WAClient.Download(audio)
-			if err != nil {
-				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to download audio")
-				return
-			} */
-			data, err := downloadAudioWithRetry(mycli.WAClient, audio, 3, 2*time.Second, mycli.token)
-			if err != nil {
-				log.Error().Err(err).Str("token", mycli.token).Str("parts", strings.Join(metaParts, ",")).Msg("Download audio failed after retries")
-				return
-			}
-			exts, _ := mime.ExtensionsByType(audio.GetMimetype())
-			var ext string
-			if len(exts) > 0 {
-				ext = exts[0]
-			} else {
-				ext = ".ogg"
-			}
-			path = filepath.Join(userDirectory, evt.Info.ID+ext)
-			err = os.WriteFile(path, data, 0600)
-			if err != nil {
-				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to save audio")
-				return
-			}
-			log.Info().Str("path", path).Str("token", mycli.token).Msg("Audio saved")
-		}
-
-		// try to get Document if any
-		document := evt.Message.GetDocumentMessage()
-		if document != nil {
-
-			// check/creates user directory for files
-			userDirectory := filepath.Join(exPath, "files", "user_"+txtid)
-			_, err := os.Stat(userDirectory)
-			if os.IsNotExist(err) {
-				errDir := os.MkdirAll(userDirectory, 0751)
-				if errDir != nil {
-					log.Error().Err(errDir).Msg("Could not create user directory")
-					return
+					// Optionally handle the error from the channel
+					if err := <-errChan; err != nil {
+						log.Error().Err(err).Msg("Error calling hook file")
+					}
 				}
-			}
-
-			/* data, err := mycli.WAClient.Download(document)
-			if err != nil {
-				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to download document")
-				return
-			} */
-
-			data, err := downloadWithRetry(mycli.WAClient, document, 3, 2*time.Second, mycli.token)
-			if err != nil {
-				log.Error().Err(err).Str("token", mycli.token).Str("parts", strings.Join(metaParts, ",")).Msg("Download failed after retries")
-				return
-			}
-			extension := ""
-			exts, err := mime.ExtensionsByType(document.GetMimetype())
-			if err != nil {
-				extension = exts[0]
 			} else {
-				filename := document.FileName
-				extension = filepath.Ext(*filename)
-			}
-			path = filepath.Join(userDirectory, evt.Info.ID+extension)
-			err = os.WriteFile(path, data, 0600)
-			if err != nil {
-				log.Error().Err(err).Str("token", mycli.token).Msg("Failed to save document")
-				return
-			}
-			log.Info().Str("path", path).Str("token", mycli.token).Msg("Document saved")
-		}
-	case *events.Receipt:
-		postmap["type"] = "ReadReceipt"
-		dowebhook = 1
-		if evt.Type == events.ReceiptTypeRead || evt.Type == events.ReceiptTypeReadSelf {
-			//log.Info().Strs("id", evt.MessageIDs).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%d", evt.Timestamp)).Msg("Message was read")
-			if evt.Type == events.ReceiptTypeRead {
-				postmap["state"] = "Read"
-			} else {
-				postmap["state"] = "ReadSelf"
-			}
-		} else if evt.Type == events.ReceiptTypeDelivered {
-			postmap["state"] = "Delivered"
-			//log.Info().Str("id", evt.MessageIDs[0]).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%d", evt.Timestamp)).Msg("Message delivered")
-		} else {
-			// Discard webhooks for inactive or other delivery types
-			return
-		}
-	case *events.Presence:
-		postmap["type"] = "Presence"
-		dowebhook = 1
-		if evt.Unavailable {
-			postmap["state"] = "offline"
-			if evt.LastSeen.IsZero() {
-				log.Info().Str("from", evt.From.String()).Msg("User is now offline")
-			} else {
-				log.Info().Str("from", evt.From.String()).Str("lastSeen", fmt.Sprintf("%d", evt.LastSeen)).Msg("User is now offline")
-			}
-		} else {
-			postmap["state"] = "online"
-			log.Info().Str("from", evt.From.String()).Msg("User is now online")
-		}
-	case *events.HistorySync:
-		postmap["type"] = "HistorySync"
-		dowebhook = 1
-
-		// check/creates user directory for files
-		userDirectory := filepath.Join(exPath, "files", "user_"+txtid)
-		_, err := os.Stat(userDirectory)
-		if os.IsNotExist(err) {
-			errDir := os.MkdirAll(userDirectory, 0751)
-			if errDir != nil {
-				log.Error().Err(errDir).Msg("Could not create user directory")
-				return
+				log.Warn().Str("userid", strconv.Itoa(mycli.userID)).Msg("No webhook set for user")
 			}
 		}
-
-		id := atomic.AddInt32(&historySyncID, 1)
-		fileName := filepath.Join(userDirectory, "history-"+strconv.Itoa(int(id))+".json")
-		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0600)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to open file to write history sync")
-			return
-		}
-		enc := json.NewEncoder(file)
-		enc.SetIndent("", "  ")
-		err = enc.Encode(evt.Data)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to write history sync")
-			return
-		}
-		//log.Info().Str("filename", fileName).Msg("Wrote history sync")
-		_ = file.Close()
-	case *events.AppState:
-		//log.Info().Str("index", fmt.Sprintf("%+v", evt.Index)).Str("actionValue", fmt.Sprintf("%+v", evt.SyncActionValue)).Msg("App state event received")
-	case *events.LoggedOut:
-		log.Info().Str("reason", evt.Reason.String()).Msg("Logged out")
-		killchannel[mycli.userID] <- true
-		sqlStmt := `UPDATE users SET connected=0 WHERE id=?`
-		_, err := mycli.db.Exec(sqlStmt, mycli.userID)
-		if err != nil {
-			log.Error().Err(err).Msg(sqlStmt)
-			return
-		}
-	case *events.ChatPresence:
-		postmap["type"] = "ChatPresence"
-		dowebhook = 1
-		/*log.Info().
-		Str("state", fmt.Sprintf("%s", evt.State)).
-		Str("media", fmt.Sprintf("%s", evt.Media)).
-		Str("chat", evt.MessageSource.Chat.String()).
-		Str("sender", evt.MessageSource.Sender.String()).
-		Msg("Chat Presence received")*/
-	case *events.CallOffer:
-		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer")
-		log.Info().Str("token", mycli.token).Msg("Got call offer")
-
-		/*err := mycli.WAClient.RejectCall(evt.From, evt.CallID)
-		if err != nil {
-			log.Error().Err(err).Str("token", mycli.token).Msg("Failed to reject call")
-			return
-		}*/
-	case *events.CallAccept:
-		log.Info().Str("token", mycli.token).Msg("Got call accept")
-		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call accept")
-	case *events.CallTerminate:
-		log.Info().Str("token", mycli.token).Msg("Got call terminate")
-		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call terminate")
-
-		postmap["type"] = "Call"
-		dowebhook = 1
-	case *events.CallOfferNotice:
-		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer notice")
-	case *events.CallRelayLatency:
-		//log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call relay latency")
-	default:
-		log.Warn().Str("event", fmt.Sprintf("%+v", evt)).Msg("Unhandled event")
-	}
-
-	if dowebhook == 1 {
-		// call webhook
-		webhookurl := ""
-		myuserinfo, found := userinfocache.Get(mycli.token)
-		if !found {
-			log.Warn().Str("token", mycli.token).Msg("Could not call webhook as there is no user for this token")
-		} else {
-			webhookurl = myuserinfo.(Values).Get("Webhook")
-		}
-
-		if !Find(mycli.subscriptions, postmap["type"].(string)) && !Find(mycli.subscriptions, "All") {
-			log.Warn().Str("type", postmap["type"].(string)).Msg("Skipping webhook. Not subscribed for this type")
-			return
-		}
-
-		if webhookurl != "" {
-			//log.Info().Str("url", webhookurl).Msg("Calling webhook")
-			values, _ := json.Marshal(postmap)
-			data := map[string]string{
-				"jsonData": string(values),
-				"token":    mycli.token,
-			}
-			if path == "" {
-				go callHook(webhookurl, data, mycli.userID)
-			} else {
-				// Create a channel to capture error from the goroutine
-				errChan := make(chan error, 1)
-				go func() {
-					err := callHookFile(webhookurl, data, mycli.userID, path)
-					errChan <- err
-				}()
-
-				// Optionally handle the error from the channel
-				if err := <-errChan; err != nil {
-					log.Error().Err(err).Msg("Error calling hook file")
-				}
-			}
-		} else {
-			log.Warn().Str("userid", strconv.Itoa(mycli.userID)).Msg("No webhook set for user")
-		}
-	}
+	}()
 }
