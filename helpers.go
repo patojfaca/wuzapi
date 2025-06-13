@@ -22,7 +22,7 @@ func Find(slice []string, val string) bool {
 
 // Update entry in User map
 func updateUserInfo(values interface{}, field string, value string) interface{} {
-	log.Debug().Str("field", field).Str("value", value).Msg("User info updated")
+	// log.Debug().Str("field", field).Str("value", value).Msg("User info updated")
 	values.(Values).m[field] = value
 	return values
 }
@@ -32,10 +32,10 @@ func callHook(myurl string, payload map[string]string, id string) {
 	log.Info().Str("url", myurl).Msg("Sending POST to client " + id)
 
 	// Log the payload map
-	log.Debug().Msg("Payload:")
+	/* log.Debug().Msg("Payload:")
 	for key, value := range payload {
 		log.Debug().Str(key, value).Msg("")
-	}
+	} */
 
 	client := clientManager.GetHTTPClient(id)
 
@@ -83,7 +83,7 @@ func callHookFile(myurl string, payload map[string]string, id string, file strin
 
 	finalPayload["file"] = file
 
-	log.Debug().Interface("finalPayload", finalPayload).Msg("Final payload to be sent")
+	// log.Debug().Interface("finalPayload", finalPayload).Msg("Final payload to be sent")
 
 	resp, err := client.R().
 		SetFiles(map[string]string{
@@ -97,7 +97,7 @@ func callHookFile(myurl string, payload map[string]string, id string, file strin
 		return fmt.Errorf("failed to send POST request: %w", err)
 	}
 
-	log.Debug().Interface("payload", finalPayload).Msg("Payload sent to webhook")
+	// log.Debug().Interface("payload", finalPayload).Msg("Payload sent to webhook")
 	log.Info().Int("status", resp.StatusCode()).Str("body", string(resp.Body())).Msg("POST request completed")
 
 	return nil

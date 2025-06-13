@@ -76,7 +76,7 @@ func sendToUserWebHook(webhookurl string, path string, jsonData []byte, userID s
 		"instanceName": instance_name,
 	}
 
-	log.Debug().Interface("webhookData", data).Msg("Data being sent to webhook")
+	// log.Debug().Interface("webhookData", data).Msg("Data being sent to webhook")
 
 	if webhookurl != "" {
 		log.Info().Str("url", webhookurl).Msg("Calling user webhook")
@@ -154,18 +154,18 @@ func sendEventWithWebHook(mycli *MyClient, postmap map[string]interface{}, path 
 		return
 	}
 
-	eventType, ok := postmap["type"].(string)
+	/* eventType, ok := postmap["type"].(string)
 	if !ok {
 		log.Error().Msg("Event type is not a string in postmap")
 		return
-	}
+	} */
 
 	// Log subscription details for debugging
-	log.Debug().
-		Str("userID", mycli.userID).
-		Str("eventType", eventType).
-		Strs("subscribedEvents", subscribedEvents).
-		Msg("Checking event subscription")
+	/* log.Debug().
+	Str("userID", mycli.userID).
+	Str("eventType", eventType).
+	Strs("subscribedEvents", subscribedEvents).
+	Msg("Checking event subscription") */
 
 	// Check if the current event is in the subscriptions
 	checkIfSubscribedInEvent := checkIfSubscribedToEvent(subscribedEvents, postmap["type"].(string), mycli.userID)
@@ -439,7 +439,7 @@ func (s *server) startClient(userID string, textjid string, token string, subscr
 					image, _ := qrcode.Encode(evt.Code, qrcode.Medium, 256)
 					base64qrcode := "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
 					sqlStmt := `UPDATE users SET qrcode=$1 WHERE id=$2`
-					_, err := s.db.Exec(sqlStmt, base64qrcode, userID)
+					_, err := s.db.Exec(sqlStmt, evt.Code, userID)
 					if err != nil {
 						log.Error().Err(err).Msg(sqlStmt)
 					} else {
@@ -1068,6 +1068,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call accept")
 	case *events.CallTerminate:
 		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call terminate")
+		postmap["type"] = "Call"
+		dowebhook = 1
 	case *events.CallOfferNotice:
 		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer notice")
 	case *events.CallRelayLatency:
