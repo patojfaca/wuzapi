@@ -29,7 +29,7 @@ func updateUserInfo(values interface{}, field string, value string) interface{} 
 
 // webhook for regular messages
 func callHook(myurl string, payload map[string]string, id string) {
-	log.Info().Str("url", myurl).Msg("Sending POST to client " + id)
+	// log.Info().Str("url", myurl).Msg("Sending POST to client " + id)
 
 	// Log the payload map
 	/* log.Debug().Msg("Payload:")

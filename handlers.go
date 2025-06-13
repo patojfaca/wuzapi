@@ -72,7 +72,7 @@ func (s *server) authalice(next http.Handler) http.Handler {
 
 		myuserinfo, found := userinfocache.Get(token)
 		if !found {
-			log.Info().Msg("Looking for user information in DB")
+			// log.Info().Msg("Looking for user information in DB")
 			// Checks DB from matching user and store user values in context
 			rows, err := s.db.Query("SELECT id,name,webhook,jid,events,proxy_url,qrcode FROM users WHERE token=$1 LIMIT 1", token)
 			if err != nil {
@@ -103,7 +103,7 @@ func (s *server) authalice(next http.Handler) http.Handler {
 			}
 		} else {
 			ctx = context.WithValue(r.Context(), "userinfo", myuserinfo)
-			log.Info().Str("name", myuserinfo.(Values).Get("name")).Msg("User info name from Cache")
+			// log.Info().Str("name", myuserinfo.(Values).Get("name")).Msg("User info name from Cache")
 			txtid = myuserinfo.(Values).Get("Id")
 		}
 
@@ -618,7 +618,7 @@ func (s *server) GetStatus() http.HandlerFunc {
 		userInfo := r.Context().Value("userinfo").(Values)
 
 		// Log all userinfo values
-		log.Info().
+		/* log.Info().
 			Str("Id", userInfo.Get("Id")).
 			Str("Jid", userInfo.Get("Jid")).
 			Str("Name", userInfo.Get("Name")).
@@ -628,7 +628,7 @@ func (s *server) GetStatus() http.HandlerFunc {
 			Str("Proxy", userInfo.Get("Proxy")).
 			Msg("User info values")
 
-		log.Info().Str("Name", userInfo.Get("Name")).Msg("User name")
+		log.Info().Str("Name", userInfo.Get("Name")).Msg("User name") */
 
 		txtid := userInfo.Get("Id")
 

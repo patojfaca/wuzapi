@@ -90,7 +90,7 @@ func PublishToRabbit(data []byte, queueOverride ...string) error {
 // Usage - like sendToGlobalWebhook
 func sendToGlobalRabbit(jsonData []byte, queueName ...string) {
 	if !rabbitEnabled {
-		log.Debug().Msg("RabbitMQ publishing is disabled, not sending message")
+		// log.Debug().Msg("RabbitMQ publishing is disabled, not sending message")
 		return
 	}
 	err := PublishToRabbit(jsonData, queueName...)

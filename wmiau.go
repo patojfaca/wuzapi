@@ -79,7 +79,7 @@ func sendToUserWebHook(webhookurl string, path string, jsonData []byte, userID s
 	// log.Debug().Interface("webhookData", data).Msg("Data being sent to webhook")
 
 	if webhookurl != "" {
-		log.Info().Str("url", webhookurl).Msg("Calling user webhook")
+		// log.Info().Str("url", webhookurl).Msg("Calling user webhook")
 		if path == "" {
 			go callHook(webhookurl, data, userID)
 		} else {
@@ -548,7 +548,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			if err != nil {
 				log.Warn().Err(err).Msg("Failed to send available presence")
 			} else {
-				log.Info().Msg("Marked self as available")
+				// log.Info().Msg("Marked self as available")
 			}
 		}
 	case *events.Connected, *events.PushNameSetting:
@@ -563,7 +563,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		if err != nil {
 			log.Warn().Err(err).Msg("Failed to send available presence")
 		} else {
-			log.Info().Msg("Marked self as available")
+			// log.Info().Msg("Marked self as available")
 		}
 		sqlStmt := `UPDATE users SET connected=1 WHERE id=$1`
 		_, err = mycli.db.Exec(sqlStmt, mycli.userID)
@@ -592,7 +592,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			log.Info().Str("jid", jid.String()).Str("userid", txtid).Str("token", token).Msg("User information set")
 		}
 	case *events.StreamReplaced:
-		log.Info().Msg("Received StreamReplaced event")
+		// log.Info().Msg("Received StreamReplaced event")
 		return
 	case *events.Message:
 		postmap["type"] = "Message"
@@ -1013,7 +1013,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		dowebhook = 1
 		//if evt.Type == events.ReceiptTypeRead || evt.Type == events.ReceiptTypeReadSelf {
 		if evt.Type == types.ReceiptTypeRead || evt.Type == types.ReceiptTypeReadSelf {
-			log.Info().Strs("id", evt.MessageIDs).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%v", evt.Timestamp)).Msg("Message was read")
+			// log.Info().Strs("id", evt.MessageIDs).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%v", evt.Timestamp)).Msg("Message was read")
 			//if evt.Type == events.ReceiptTypeRead {
 			if evt.Type == types.ReceiptTypeRead {
 				postmap["state"] = "Read"
@@ -1023,7 +1023,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			//} else if evt.Type == events.ReceiptTypeDelivered {
 		} else if evt.Type == types.ReceiptTypeDelivered {
 			postmap["state"] = "Delivered"
-			log.Info().Str("id", evt.MessageIDs[0]).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%v", evt.Timestamp)).Msg("Message delivered")
+			// log.Info().Str("id", evt.MessageIDs[0]).Str("source", evt.SourceString()).Str("timestamp", fmt.Sprintf("%v", evt.Timestamp)).Msg("Message delivered")
 		} else {
 			// Discard webhooks for inactive or other delivery types
 			return
@@ -1034,19 +1034,19 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		if evt.Unavailable {
 			postmap["state"] = "offline"
 			if evt.LastSeen.IsZero() {
-				log.Info().Str("from", evt.From.String()).Msg("User is now offline")
+				// log.Info().Str("from", evt.From.String()).Msg("User is now offline")
 			} else {
-				log.Info().Str("from", evt.From.String()).Str("lastSeen", fmt.Sprintf("%v", evt.LastSeen)).Msg("User is now offline")
+				// log.Info().Str("from", evt.From.String()).Str("lastSeen", fmt.Sprintf("%v", evt.LastSeen)).Msg("User is now offline")
 			}
 		} else {
 			postmap["state"] = "online"
-			log.Info().Str("from", evt.From.String()).Msg("User is now online")
+			// log.Info().Str("from", evt.From.String()).Msg("User is now online")
 		}
 	case *events.HistorySync:
 		postmap["type"] = "HistorySync"
 		dowebhook = 1
 	case *events.AppState:
-		log.Info().Str("index", fmt.Sprintf("%+v", evt.Index)).Str("actionValue", fmt.Sprintf("%+v", evt.SyncActionValue)).Msg("App state event received")
+		// log.Info().Str("index", fmt.Sprintf("%+v", evt.Index)).Str("actionValue", fmt.Sprintf("%+v", evt.SyncActionValue)).Msg("App state event received")
 	case *events.LoggedOut:
 		postmap["type"] = "Logged Out"
 		dowebhook = 1
@@ -1061,29 +1061,29 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 	case *events.ChatPresence:
 		postmap["type"] = "ChatPresence"
 		dowebhook = 1
-		log.Info().Str("state", fmt.Sprintf("%s", evt.State)).Str("media", fmt.Sprintf("%s", evt.Media)).Str("chat", evt.MessageSource.Chat.String()).Str("sender", evt.MessageSource.Sender.String()).Msg("Chat Presence received")
+		// log.Info().Str("state", fmt.Sprintf("%s", evt.State)).Str("media", fmt.Sprintf("%s", evt.Media)).Str("chat", evt.MessageSource.Chat.String()).Str("sender", evt.MessageSource.Sender.String()).Msg("Chat Presence received")
 	case *events.CallOffer:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer")
+		// log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer")
 	case *events.CallAccept:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call accept")
+		// log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call accept")
 	case *events.CallTerminate:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call terminate")
+		// log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call terminate")
 		postmap["type"] = "Call"
 		dowebhook = 1
 	case *events.CallOfferNotice:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer notice")
+		// log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call offer notice")
 	case *events.CallRelayLatency:
-		log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call relay latency")
+		// log.Info().Str("event", fmt.Sprintf("%+v", evt)).Msg("Got call relay latency")
 	case *events.Disconnected:
 		postmap["type"] = "Disconnected"
 		dowebhook = 1
-		log.Info().Str("reason", fmt.Sprintf("%+v", evt)).Msg("Disconnected from Whatsapp")
+		// log.Info().Str("reason", fmt.Sprintf("%+v", evt)).Msg("Disconnected from Whatsapp")
 	case *events.ConnectFailure:
 		postmap["type"] = "ConnectFailure"
 		dowebhook = 1
-		log.Error().Str("reason", fmt.Sprintf("%+v", evt)).Msg("Failed to connect to Whatsapp")
+		// log.Error().Str("reason", fmt.Sprintf("%+v", evt)).Msg("Failed to connect to Whatsapp")
 	default:
-		log.Warn().Str("event", fmt.Sprintf("%+v", evt)).Msg("Unhandled event")
+		// log.Warn().Str("event", fmt.Sprintf("%+v", evt)).Msg("Unhandled event")
 	}
 
 	if dowebhook == 1 {

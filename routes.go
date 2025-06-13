@@ -56,14 +56,14 @@ func (s *server) routes() {
 	c = c.Append(hlog.NewHandler(routerLog))
 
 	c = c.Append(hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
-		hlog.FromRequest(r).Info().
-			Str("method", r.Method).
-			Stringer("url", r.URL).
-			Int("status", status).
-			Int("size", size).
-			Dur("duration", duration).
-			Str("userid", r.Context().Value("userinfo").(Values).Get("Id")).
-			Msg("Got API Request")
+		/* hlog.FromRequest(r).Info().
+		Str("method", r.Method).
+		Stringer("url", r.URL).
+		Int("status", status).
+		Int("size", size).
+		Dur("duration", duration).
+		Str("userid", r.Context().Value("userinfo").(Values).Get("Id")).
+		Msg("Got API Request") */
 	}))
 
 	c = c.Append(hlog.RemoteAddrHandler("ip"))
