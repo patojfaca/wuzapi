@@ -2336,6 +2336,140 @@ func (s *server) CheckUser() http.HandlerFunc {
 	}
 }
 
+func (s *server) GetLIDByJID() http.HandlerFunc {
+
+	type checkRequestStruct struct {
+		Phone string
+	}
+
+	type User struct {
+		LID string
+		JID string
+	}
+
+	type UserCollection struct {
+		Users User
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		decoder := json.NewDecoder(r.Body)
+		var t checkRequestStruct
+		err := decoder.Decode(&t)
+		if err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode Payload"))
+			return
+		}
+
+		if len(t.Phone) < 1 {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing phone in Payload"))
+			return
+		}
+
+		lid := ""
+
+		rows, err := s.db.Query("SELECT lid FROM whatsmeow_lid_map WHERE pn=$1 LIMIT 1", t.Phone)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		defer rows.Close()
+
+		if rows.Next() {
+			err = rows.Scan(&lid)
+			if err != nil {
+				s.Respond(w, r, http.StatusInternalServerError, err)
+				return
+			}
+		}
+
+		if err = rows.Err(); err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+			return
+		}
+
+		uc := new(UserCollection)
+		var msg = User{JID: fmt.Sprintf("%s", t.Phone), LID: lid}
+		uc.Users = msg
+		log.Debug().Str("jid", msg.JID).Str("lid", msg.LID).Msg("Lid for JID")
+
+		responseJson, err := json.Marshal(uc)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+		return
+	}
+}
+
+func (s *server) GetJIDByLID() http.HandlerFunc {
+
+	type checkRequestStruct struct {
+		LID string
+	}
+
+	type User struct {
+		LID string
+		JID string
+	}
+
+	type UserCollection struct {
+		Users User
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		decoder := json.NewDecoder(r.Body)
+		var t checkRequestStruct
+		err := decoder.Decode(&t)
+		if err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode Payload"))
+			return
+		}
+
+		if len(t.LID) < 1 {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("missing lid in Payload"))
+			return
+		}
+
+		jid := ""
+
+		rows, err := s.db.Query("SELECT pn FROM whatsmeow_lid_map WHERE lid=$1 LIMIT 1", t.LID)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		defer rows.Close()
+
+		if rows.Next() {
+			err = rows.Scan(&jid)
+			if err != nil {
+				s.Respond(w, r, http.StatusInternalServerError, err)
+				return
+			}
+		}
+
+		if err = rows.Err(); err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+			return
+		}
+
+		uc := new(UserCollection)
+		var msg = User{LID: fmt.Sprintf("%s", t.LID), JID: jid}
+		uc.Users = msg
+		log.Debug().Str("jid", msg.JID).Str("lid", msg.LID).Msg("Lid for JID")
+
+		responseJson, err := json.Marshal(uc)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+		return
+	}
+}
+
 // Gets user information
 func (s *server) GetUser() http.HandlerFunc {
 
