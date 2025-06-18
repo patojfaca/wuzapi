@@ -611,7 +611,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			metaParts = append(metaParts, "ephemeral")
 		}
 
-		log.Info().Str("id", evt.Info.ID).Str("source", evt.Info.SourceString()).Str("parts", strings.Join(metaParts, ", ")).Msg("Message Received")
+		log.Info().Str("id", evt.Info.ID).Str("source", evt.Info.SourceString()).Str("parts", strings.Join(metaParts, ", ")).Str("userID", txtid).Msg("Message Received")
 
 		if !*skipMedia {
 			// try to get Image if any
@@ -1050,7 +1050,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 	case *events.LoggedOut:
 		postmap["type"] = "Logged Out"
 		dowebhook = 1
-		log.Info().Str("reason", evt.Reason.String()).Msg("Logged out")
+		log.Info().Str("reason", evt.Reason.String()).Str("userID", txtid).Msg("Logged out")
 		killchannel[mycli.userID] <- true
 		sqlStmt := `UPDATE users SET connected=0 WHERE id=$1`
 		_, err := mycli.db.Exec(sqlStmt, mycli.userID)
