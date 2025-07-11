@@ -706,6 +706,7 @@ func (s *server) SendDocument() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 		msgid := ""
 		var resp whatsmeow.SendResponse
 
@@ -740,7 +741,8 @@ func (s *server) SendDocument() http.HandlerFunc {
 
 		recipient, err := validateMessageFields(t.Phone, t.ContextInfo.StanzaID, t.ContextInfo.Participant)
 		if err != nil {
-			log.Error().Msg(fmt.Sprintf("%s", err))
+			// log.Error().Msg(fmt.Sprintf("%s", err))
+			logger.Error().Msg(fmt.Sprintf("%s", err))
 			s.Respond(w, r, http.StatusBadRequest, err)
 			return
 		}
@@ -809,7 +811,8 @@ func (s *server) SendDocument() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Document Message sent")
+		// log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Document Message sent")
+		logger.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Document Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp.Unix(), "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -835,6 +838,7 @@ func (s *server) SendAudio() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 		msgid := ""
 		var resp whatsmeow.SendResponse
 
@@ -863,7 +867,8 @@ func (s *server) SendAudio() http.HandlerFunc {
 
 		recipient, err := validateMessageFields(t.Phone, t.ContextInfo.StanzaID, t.ContextInfo.Participant)
 		if err != nil {
-			log.Error().Msg(fmt.Sprintf("%s", err))
+			// log.Error().Msg(fmt.Sprintf("%s", err))
+			logger.Error().Msg(fmt.Sprintf("%s", err))
 			s.Respond(w, r, http.StatusBadRequest, err)
 			return
 		}
@@ -930,7 +935,8 @@ func (s *server) SendAudio() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Audio Message sent")
+		// log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Audio Message sent")
+		logger.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Audio Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp.Unix(), "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -957,6 +963,7 @@ func (s *server) SendImage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 		msgid := ""
 		var resp whatsmeow.SendResponse
 
@@ -985,7 +992,8 @@ func (s *server) SendImage() http.HandlerFunc {
 
 		recipient, err := validateMessageFields(t.Phone, t.ContextInfo.StanzaID, t.ContextInfo.Participant)
 		if err != nil {
-			log.Error().Msg(fmt.Sprintf("%s", err))
+			// log.Error().Msg(fmt.Sprintf("%s", err))
+			logger.Error().Msg(fmt.Sprintf("%s", err))
 			s.Respond(w, r, http.StatusBadRequest, err)
 			return
 		}
@@ -1086,7 +1094,8 @@ func (s *server) SendImage() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Image Message sent")
+		// log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Image Message sent")
+		logger.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Image Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp.Unix(), "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1113,6 +1122,7 @@ func (s *server) SendSticker() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 		msgid := ""
 		var resp whatsmeow.SendResponse
 
@@ -1141,7 +1151,8 @@ func (s *server) SendSticker() http.HandlerFunc {
 
 		recipient, err := validateMessageFields(t.Phone, t.ContextInfo.StanzaID, t.ContextInfo.Participant)
 		if err != nil {
-			log.Error().Msg(fmt.Sprintf("%s", err))
+			// log.Error().Msg(fmt.Sprintf("%s", err))
+			logger.Error().Msg(fmt.Sprintf("%s", err))
 			s.Respond(w, r, http.StatusBadRequest, err)
 			return
 		}
@@ -1209,7 +1220,8 @@ func (s *server) SendSticker() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Sticker Message sent")
+		// log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Sticker Message sent")
+		logger.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Sticker Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp.Unix(), "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1237,6 +1249,7 @@ func (s *server) SendVideo() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 		msgid := ""
 		var resp whatsmeow.SendResponse
 
@@ -1265,7 +1278,8 @@ func (s *server) SendVideo() http.HandlerFunc {
 
 		recipient, err := validateMessageFields(t.Phone, t.ContextInfo.StanzaID, t.ContextInfo.Participant)
 		if err != nil {
-			log.Error().Msg(fmt.Sprintf("%s", err))
+			// log.Error().Msg(fmt.Sprintf("%s", err))
+			logger.Error().Msg(fmt.Sprintf("%s", err))
 			s.Respond(w, r, http.StatusBadRequest, err)
 			return
 		}
@@ -1334,7 +1348,8 @@ func (s *server) SendVideo() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Video Message sent")
+		// log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Video Message sent")
+		logger.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Video Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp.Unix(), "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1360,6 +1375,7 @@ func (s *server) SendContact() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		if clientManager.GetWhatsmeowClient(txtid) == nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
@@ -1391,7 +1407,8 @@ func (s *server) SendContact() http.HandlerFunc {
 
 		recipient, err := validateMessageFields(t.Phone, t.ContextInfo.StanzaID, t.ContextInfo.Participant)
 		if err != nil {
-			log.Error().Msg(fmt.Sprintf("%s", err))
+			// log.Error().Msg(fmt.Sprintf("%s", err))
+			logger.Error().Msg(fmt.Sprintf("%s", err))
 			s.Respond(w, r, http.StatusBadRequest, err)
 			return
 		}
@@ -1427,7 +1444,8 @@ func (s *server) SendContact() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Contact Message sent")
+		// log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Contact Message sent")
+		logger.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Contact Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp.Unix(), "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1454,6 +1472,7 @@ func (s *server) SendLocation() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		if clientManager.GetWhatsmeowClient(txtid) == nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
@@ -1485,7 +1504,8 @@ func (s *server) SendLocation() http.HandlerFunc {
 
 		recipient, err := validateMessageFields(t.Phone, t.ContextInfo.StanzaID, t.ContextInfo.Participant)
 		if err != nil {
-			log.Error().Msg(fmt.Sprintf("%s", err))
+			// log.Error().Msg(fmt.Sprintf("%s", err))
+			logger.Error().Msg(fmt.Sprintf("%s", err))
 			s.Respond(w, r, http.StatusBadRequest, err)
 			return
 		}
@@ -1522,7 +1542,8 @@ func (s *server) SendLocation() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Location Message sent")
+		// log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Location Message sent")
+		logger.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Location Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp.Unix(), "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1551,6 +1572,7 @@ func (s *server) SendButtons() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		if clientManager.GetWhatsmeowClient(txtid) == nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
@@ -1626,7 +1648,8 @@ func (s *server) SendButtons() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		// log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
+		logger.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp.Unix(), "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1800,6 +1823,7 @@ func (s *server) SendMessage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		if clientManager.GetWhatsmeowClient(txtid) == nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
@@ -1829,7 +1853,8 @@ func (s *server) SendMessage() http.HandlerFunc {
 
 		recipient, err := validateMessageFields(t.Phone, t.ContextInfo.StanzaID, t.ContextInfo.Participant)
 		if err != nil {
-			log.Error().Msg(fmt.Sprintf("%s", err))
+			// log.Error().Msg(fmt.Sprintf("%s", err))
+			logger.Error().Msg(fmt.Sprintf("%s", err))
 			s.Respond(w, r, http.StatusBadRequest, err)
 			return
 		}
@@ -1866,7 +1891,8 @@ func (s *server) SendMessage() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Message sent")
+		// log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Message sent")
+		logger.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp.Unix(), "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -1889,6 +1915,7 @@ func (s *server) SendPoll() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		if clientManager.GetWhatsmeowClient(txtid) == nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
@@ -1940,7 +1967,8 @@ func (s *server) SendPoll() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Msg("Poll sent")
+		// log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Msg("Poll sent")
+		logger.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Msg("Poll sent")
 
 		response := map[string]interface{}{"Details": "Poll sent successfully", "Id": msgid}
 		responseJson, err := json.Marshal(response)
@@ -1963,6 +1991,7 @@ func (s *server) DeleteMessage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		if clientManager.GetWhatsmeowClient(txtid) == nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
@@ -2004,7 +2033,8 @@ func (s *server) DeleteMessage() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Message deleted")
+		// log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Message deleted")
+		logger.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("Message deleted")
 		response := map[string]interface{}{"Details": "Deleted", "Timestamp": resp.Timestamp.Unix(), "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -2030,6 +2060,7 @@ func (s *server) SendEditMessage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		if clientManager.GetWhatsmeowClient(txtid) == nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
@@ -2059,7 +2090,8 @@ func (s *server) SendEditMessage() http.HandlerFunc {
 
 		recipient, err := validateMessageFields(t.Phone, t.ContextInfo.StanzaID, t.ContextInfo.Participant)
 		if err != nil {
-			log.Error().Msg(fmt.Sprintf("%s", err))
+			// log.Error().Msg(fmt.Sprintf("%s", err))
+			logger.Error().Msg(fmt.Sprintf("%s", err))
 			s.Respond(w, r, http.StatusBadRequest, err)
 			return
 		}
@@ -2097,7 +2129,8 @@ func (s *server) SendEditMessage() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message edit sent")
+		// log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message edit sent")
+		logger.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message edit sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp.Unix(), "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
@@ -2484,6 +2517,7 @@ func (s *server) GetUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		if clientManager.GetWhatsmeowClient(txtid) == nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
@@ -2515,7 +2549,8 @@ func (s *server) GetUser() http.HandlerFunc {
 
 		if err != nil {
 			msg := fmt.Sprintf("Failed to get user info: %v", err)
-			log.Error().Msg(msg)
+			// log.Error().Msg(msg)
+			logger.Error().Msg(msg)
 			s.Respond(w, r, http.StatusInternalServerError, msg)
 			return
 		}
@@ -2547,6 +2582,7 @@ func (s *server) SendPresence() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		if clientManager.GetWhatsmeowClient(txtid) == nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
@@ -2573,7 +2609,8 @@ func (s *server) SendPresence() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("presence", pre.Type).Msg("Your global presence status")
+		// log.Info().Str("presence", pre.Type).Msg("Your global presence status")
+		logger.Info().Str("presence", pre.Type).Msg("Your global presence status")
 
 		err = clientManager.GetWhatsmeowClient(txtid).SendPresence(presence)
 		if err != nil {
@@ -2604,6 +2641,7 @@ func (s *server) GetAvatar() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		if clientManager.GetWhatsmeowClient(txtid) == nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
@@ -2638,7 +2676,8 @@ func (s *server) GetAvatar() http.HandlerFunc {
 		})
 		if err != nil {
 			msg := fmt.Sprintf("failed to get avatar: %v", err)
-			log.Error().Msg(msg)
+			// log.Error().Msg(msg)
+			logger.Error().Msg(msg)
 			s.Respond(w, r, http.StatusInternalServerError, errors.New(msg))
 			return
 		}
@@ -2648,7 +2687,8 @@ func (s *server) GetAvatar() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("id", pic.ID).Str("url", pic.URL).Msg("Got avatar")
+		// log.Info().Str("id", pic.ID).Str("url", pic.URL).Msg("Got avatar")
+		logger.Info().Str("id", pic.ID).Str("url", pic.URL).Msg("Got avatar")
 
 		responseJson, err := json.Marshal(pic)
 		if err != nil {
@@ -2765,6 +2805,7 @@ func (s *server) DownloadImage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		mimetype := ""
 		var imgdata []byte
@@ -2808,7 +2849,8 @@ func (s *server) DownloadImage() http.HandlerFunc {
 		if img != nil {
 			imgdata, err = clientManager.GetWhatsmeowClient(txtid).Download(context.Background(), img)
 			if err != nil {
-				log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("failed to download image")
+				// log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("failed to download image")
+				logger.Error().Str("error", fmt.Sprintf("%v", err)).Msg("failed to download image")
 				msg := fmt.Sprintf("failed to download image %v", err)
 				s.Respond(w, r, http.StatusInternalServerError, errors.New(msg))
 				return
@@ -2844,6 +2886,7 @@ func (s *server) DownloadDocument() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		mimetype := ""
 		var docdata []byte
@@ -2887,7 +2930,8 @@ func (s *server) DownloadDocument() http.HandlerFunc {
 		if doc != nil {
 			docdata, err = clientManager.GetWhatsmeowClient(txtid).Download(context.Background(), doc)
 			if err != nil {
-				log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("failed to download document")
+				// log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("failed to download document")
+				logger.Error().Str("error", fmt.Sprintf("%v", err)).Msg("failed to download document")
 				msg := fmt.Sprintf("failed to download document %v", err)
 				s.Respond(w, r, http.StatusInternalServerError, errors.New(msg))
 				return
@@ -2923,6 +2967,7 @@ func (s *server) DownloadVideo() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		mimetype := ""
 		var docdata []byte
@@ -2966,7 +3011,8 @@ func (s *server) DownloadVideo() http.HandlerFunc {
 		if doc != nil {
 			docdata, err = clientManager.GetWhatsmeowClient(txtid).Download(context.Background(), doc)
 			if err != nil {
-				log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("failed to download video")
+				// log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("failed to download video")
+				logger.Error().Str("error", fmt.Sprintf("%v", err)).Msg("failed to download video")
 				msg := fmt.Sprintf("failed to download video %v", err)
 				s.Respond(w, r, http.StatusInternalServerError, errors.New(msg))
 				return
@@ -3002,6 +3048,7 @@ func (s *server) DownloadAudio() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		mimetype := ""
 		var docdata []byte
@@ -3045,7 +3092,8 @@ func (s *server) DownloadAudio() http.HandlerFunc {
 		if doc != nil {
 			docdata, err = clientManager.GetWhatsmeowClient(txtid).Download(context.Background(), doc)
 			if err != nil {
-				log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("failed to download audio")
+				// log.Error().Str("error", fmt.Sprintf("%v", err)).Msg("failed to download audio")
+				logger.Error().Str("error", fmt.Sprintf("%v", err)).Msg("failed to download audio")
 				msg := fmt.Sprintf("failed to download audio %v", err)
 				s.Respond(w, r, http.StatusInternalServerError, errors.New(msg))
 				return
@@ -3077,6 +3125,7 @@ func (s *server) React() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+		logger := getLoggerForNumber(txtid)
 
 		if clientManager.GetWhatsmeowClient(txtid) == nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
@@ -3106,7 +3155,8 @@ func (s *server) React() http.HandlerFunc {
 
 		recipient, ok := parseJID(t.Phone)
 		if !ok {
-			log.Error().Msg(fmt.Sprintf("%s", err))
+			// log.Error().Msg(fmt.Sprintf("%s", err))
+			logger.Error().Msg(fmt.Sprintf("%s", err))
 			s.Respond(w, r, http.StatusBadRequest, errors.New("could not parse Group JID"))
 			return
 		}
@@ -3147,7 +3197,8 @@ func (s *server) React() http.HandlerFunc {
 			return
 		}
 
-		log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("React Message sent")
+		// log.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("React Message sent")
+		logger.Info().Str("timestamp", fmt.Sprintf("%v", resp.Timestamp)).Str("id", msgid).Str("userID", txtid).Msg("React Message sent")
 		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp.Unix(), "Id": msgid}
 		responseJson, err := json.Marshal(response)
 		if err != nil {

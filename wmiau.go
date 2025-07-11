@@ -77,6 +77,7 @@ func sendToUserWebHook(webhookurl string, path string, jsonData []byte, userID s
 	}
 
 	// log.Debug().Interface("webhookData", data).Msg("Data being sent to webhook")
+	logger := getLoggerForNumber(userID)
 
 	if webhookurl != "" {
 		// log.Info().Str("url", webhookurl).Msg("Calling user webhook")
@@ -92,11 +93,13 @@ func sendToUserWebHook(webhookurl string, path string, jsonData []byte, userID s
 
 			// Optionally handle the error from the channel (if needed)
 			if err := <-errChan; err != nil {
-				log.Error().Err(err).Msg("Error calling hook file")
+				// log.Error().Err(err).Msg("Error calling hook file")
+				logger.Error().Err(err).Msg("Error calling hook file")
 			}
 		}
 	} else {
-		log.Warn().Str("userid", userID).Msg("No webhook set for user")
+		// log.Warn().Str("userid", userID).Msg("No webhook set for user")
+		logger.Warn().Str("userid", userID).Msg("No webhook set for user")
 	}
 }
 
@@ -173,10 +176,12 @@ func sendEventWithWebHook(mycli *MyClient, postmap map[string]interface{}, path 
 		return
 	}
 
+	logger := getLoggerForNumber(mycli.userID)
 	// Prepare webhook data
 	jsonData, err := json.Marshal(postmap)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to marshal postmap to JSON")
+		// log.Error().Err(err).Msg("Failed to marshal postmap to JSON")
+		logger.Error().Err(err).Msg("Failed to marshal postmap to JSON")
 		return
 	}
 
@@ -541,12 +546,15 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 	dowebhook := 0
 	path := ""
 
+	logger := getLoggerForNumber(mycli.userID)
+
 	switch evt := rawEvt.(type) {
 	case *events.AppStateSyncComplete:
 		if len(mycli.WAClient.Store.PushName) > 0 && evt.Name == appstate.WAPatchCriticalBlock {
 			err := mycli.WAClient.SendPresence(types.PresenceAvailable)
 			if err != nil {
-				log.Warn().Err(err).Msg("Failed to send available presence")
+				// log.Warn().Err(err).Msg("Failed to send available presence")
+				logger.Warn().Err(err).Msg("Failed to send available presence")
 			} else {
 				// log.Info().Msg("Marked self as available")
 			}
@@ -561,35 +569,41 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		// This makes sure that outgoing messages always have the right pushname.
 		err := mycli.WAClient.SendPresence(types.PresenceAvailable)
 		if err != nil {
-			log.Warn().Err(err).Msg("Failed to send available presence")
+			// log.Warn().Err(err).Msg("Failed to send available presence")
+			logger.Warn().Err(err).Msg("Failed to send available presence")
 		} else {
 			// log.Info().Msg("Marked self as available")
 		}
 		sqlStmt := `UPDATE users SET connected=1 WHERE id=$1`
 		_, err = mycli.db.Exec(sqlStmt, mycli.userID)
 		if err != nil {
-			log.Error().Err(err).Msg(sqlStmt)
+			// log.Error().Err(err).Msg(sqlStmt)
+			logger.Error().Err(err).Msg(sqlStmt)
 			return
 		}
 	case *events.PairSuccess:
-		log.Info().Str("userid", mycli.userID).Str("token", mycli.token).Str("ID", evt.ID.String()).Str("BusinessName", evt.BusinessName).Str("Platform", evt.Platform).Msg("QR Pair Success")
+		// log.Info().Str("userid", mycli.userID).Str("token", mycli.token).Str("ID", evt.ID.String()).Str("BusinessName", evt.BusinessName).Str("Platform", evt.Platform).Msg("QR Pair Success")
+		logger.Info().Str("userid", mycli.userID).Str("token", mycli.token).Str("ID", evt.ID.String()).Str("BusinessName", evt.BusinessName).Str("Platform", evt.Platform).Msg("QR Pair Success")
 		jid := evt.ID
 		sqlStmt := `UPDATE users SET jid=$1 WHERE id=$2`
 		_, err := mycli.db.Exec(sqlStmt, jid, mycli.userID)
 		if err != nil {
-			log.Error().Err(err).Msg(sqlStmt)
+			// log.Error().Err(err).Msg(sqlStmt)
+			logger.Error().Err(err).Msg(sqlStmt)
 			return
 		}
 
 		myuserinfo, found := userinfocache.Get(mycli.token)
 		if !found {
-			log.Warn().Msg("No user info cached on pairing?")
+			// log.Warn().Msg("No user info cached on pairing?")
+			logger.Warn().Msg("No user info cached on pairing?")
 		} else {
 			txtid = myuserinfo.(Values).Get("Id")
 			token := myuserinfo.(Values).Get("Token")
 			v := updateUserInfo(myuserinfo, "Jid", fmt.Sprintf("%s", jid))
 			userinfocache.Set(token, v, cache.NoExpiration)
-			log.Info().Str("jid", jid.String()).Str("userid", txtid).Str("token", token).Msg("User information set")
+			// log.Info().Str("jid", jid.String()).Str("userid", txtid).Str("token", token).Msg("User information set")
+			logger.Info().Str("jid", jid.String()).Str("userid", txtid).Str("token", token).Msg("User information set")
 		}
 	case *events.StreamReplaced:
 		// log.Info().Msg("Received StreamReplaced event")
@@ -611,7 +625,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 			metaParts = append(metaParts, "ephemeral")
 		}
 
-		log.Info().Str("id", evt.Info.ID).Str("source", evt.Info.SourceString()).Str("parts", strings.Join(metaParts, ", ")).Str("userID", txtid).Msg("Message Received")
+		// log.Info().Str("id", evt.Info.ID).Str("source", evt.Info.SourceString()).Str("parts", strings.Join(metaParts, ", ")).Str("userID", txtid).Msg("Message Received")
+		logger.Info().Str("id", evt.Info.ID).Str("source", evt.Info.SourceString()).Str("parts", strings.Join(metaParts, ", ")).Str("userID", txtid).Msg("Message Received")
 
 		if !*skipMedia {
 			// try to get Image if any
@@ -621,14 +636,16 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				tmpDirectory := filepath.Join("/tmp", "user_"+txtid)
 				errDir := os.MkdirAll(tmpDirectory, 0751)
 				if errDir != nil {
-					log.Error().Err(errDir).Msg("Could not create temporary directory")
+					// log.Error().Err(errDir).Msg("Could not create temporary directory")
+					logger.Error().Err(errDir).Msg("Could not create temporary directory")
 					return
 				}
 
 				// Download the image
 				data, err := mycli.WAClient.Download(context.Background(), img)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to download image")
+					// log.Error().Err(err).Msg("Failed to download image")
+					logger.Error().Err(err).Msg("Failed to download image")
 					return
 				}
 
@@ -639,7 +656,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				// Write the image to the temporary file
 				err = os.WriteFile(tmpPath, data, 0600)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to save image to temporary file")
+					// log.Error().Err(err).Msg("Failed to save image to temporary file")
+					logger.Error().Err(err).Msg("Failed to save image to temporary file")
 					return
 				}
 
@@ -650,7 +668,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 				err = mycli.db.Get(&s3Config, "SELECT s3_enabled, media_delivery FROM users WHERE id = $1", txtid)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to get S3 config")
+					// log.Error().Err(err).Msg("Failed to get S3 config")
+					logger.Error().Err(err).Msg("Failed to get S3 config")
 					s3Config.Enabled = false
 					s3Config.MediaDelivery = "base64"
 				}
@@ -676,7 +695,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 						isIncoming,
 					)
 					if err != nil {
-						log.Error().Err(err).Msg("Failed to upload image to S3")
+						// log.Error().Err(err).Msg("Failed to upload image to S3")
+						logger.Error().Err(err).Msg("Failed to upload image to S3")
 					} else {
 						postmap["s3"] = s3Data
 					}
@@ -686,7 +706,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				if s3Config.MediaDelivery == "base64" || s3Config.MediaDelivery == "both" {
 					base64String, mimeType, err := fileToBase64(tmpPath)
 					if err != nil {
-						log.Error().Err(err).Msg("Failed to convert image to base64")
+						// log.Error().Err(err).Msg("Failed to convert image to base64")
+						logger.Error().Err(err).Msg("Failed to convert image to base64")
 						return
 					}
 
@@ -697,14 +718,17 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 
 				// Log the successful conversion
-				log.Info().Str("path", tmpPath).Msg("Image processed")
+				// log.Info().Str("path", tmpPath).Msg("Image processed")
+				logger.Info().Str("path", tmpPath).Msg("Image processed")
 
 				// Delete the temporary file
 				err = os.Remove(tmpPath)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to delete temporary file")
+					// log.Error().Err(err).Msg("Failed to delete temporary file")
+					logger.Error().Err(err).Msg("Failed to delete temporary file")
 				} else {
-					log.Info().Str("path", tmpPath).Msg("Temporary file deleted")
+					// log.Info().Str("path", tmpPath).Msg("Temporary file deleted")
+					logger.Info().Str("path", tmpPath).Msg("Temporary file deleted")
 				}
 			}
 
@@ -715,14 +739,16 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				tmpDirectory := filepath.Join("/tmp", "user_"+txtid)
 				errDir := os.MkdirAll(tmpDirectory, 0751)
 				if errDir != nil {
-					log.Error().Err(errDir).Msg("Could not create temporary directory")
+					// log.Error().Err(errDir).Msg("Could not create temporary directory")
+					logger.Error().Err(errDir).Msg("Could not create temporary directory")
 					return
 				}
 
 				// Download the audio
 				data, err := mycli.WAClient.Download(context.Background(), audio)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to download audio")
+					// log.Error().Err(err).Msg("Failed to download audio")
+					logger.Error().Err(err).Msg("Failed to download audio")
 					return
 				}
 
@@ -739,7 +765,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				// Write the audio to the temporary file
 				err = os.WriteFile(tmpPath, data, 0600)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to save audio to temporary file")
+					// log.Error().Err(err).Msg("Failed to save audio to temporary file")
+					logger.Error().Err(err).Msg("Failed to save audio to temporary file")
 					return
 				}
 
@@ -750,7 +777,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 				err = mycli.db.Get(&s3Config, "SELECT s3_enabled, media_delivery FROM users WHERE id = $1", txtid)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to get S3 config")
+					// log.Error().Err(err).Msg("Failed to get S3 config")
+					logger.Error().Err(err).Msg("Failed to get S3 config")
 					s3Config.Enabled = false
 					s3Config.MediaDelivery = "base64"
 				}
@@ -776,7 +804,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 						isIncoming,
 					)
 					if err != nil {
-						log.Error().Err(err).Msg("Failed to upload audio to S3")
+						// log.Error().Err(err).Msg("Failed to upload audio to S3")
+						logger.Error().Err(err).Msg("Failed to upload audio to S3")
 					} else {
 						postmap["s3"] = s3Data
 					}
@@ -786,7 +815,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				if s3Config.MediaDelivery == "base64" || s3Config.MediaDelivery == "both" {
 					base64String, mimeType, err := fileToBase64(tmpPath)
 					if err != nil {
-						log.Error().Err(err).Msg("Failed to convert audio to base64")
+						// log.Error().Err(err).Msg("Failed to convert audio to base64")
+						logger.Error().Err(err).Msg("Failed to convert audio to base64")
 						return
 					}
 
@@ -797,14 +827,17 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 
 				// Log the successful conversion
-				log.Info().Str("path", tmpPath).Msg("Audio processed")
+				// log.Info().Str("path", tmpPath).Msg("Audio processed")
+				logger.Info().Str("path", tmpPath).Msg("Audio processed")
 
 				// Delete the temporary file
 				err = os.Remove(tmpPath)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to delete temporary file")
+					// log.Error().Err(err).Msg("Failed to delete temporary file")
+					logger.Error().Err(err).Msg("Failed to delete temporary file")
 				} else {
-					log.Info().Str("path", tmpPath).Msg("Temporary file deleted")
+					// log.Info().Str("path", tmpPath).Msg("Temporary file deleted")
+					logger.Info().Str("path", tmpPath).Msg("Temporary file deleted")
 				}
 			}
 
@@ -815,14 +848,16 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				tmpDirectory := filepath.Join("/tmp", "user_"+txtid)
 				errDir := os.MkdirAll(tmpDirectory, 0751)
 				if errDir != nil {
-					log.Error().Err(errDir).Msg("Could not create temporary directory")
+					// log.Error().Err(errDir).Msg("Could not create temporary directory")
+					logger.Error().Err(errDir).Msg("Could not create temporary directory")
 					return
 				}
 
 				// Download the document
 				data, err := mycli.WAClient.Download(context.Background(), document)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to download document")
+					// log.Error().Err(err).Msg("Failed to download document")
+					logger.Error().Err(err).Msg("Failed to download document")
 					return
 				}
 
@@ -844,7 +879,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				// Write the document to the temporary file
 				err = os.WriteFile(tmpPath, data, 0600)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to save document to temporary file")
+					// log.Error().Err(err).Msg("Failed to save document to temporary file")
+					logger.Error().Err(err).Msg("Failed to save document to temporary file")
 					return
 				}
 
@@ -855,7 +891,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 				err = mycli.db.Get(&s3Config, "SELECT s3_enabled, media_delivery FROM users WHERE id = $1", txtid)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to get S3 config")
+					// log.Error().Err(err).Msg("Failed to get S3 config")
+					logger.Error().Err(err).Msg("Failed to get S3 config")
 					s3Config.Enabled = false
 					s3Config.MediaDelivery = "base64"
 				}
@@ -881,7 +918,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 						isIncoming,
 					)
 					if err != nil {
-						log.Error().Err(err).Msg("Failed to upload document to S3")
+						// log.Error().Err(err).Msg("Failed to upload document to S3")
+						logger.Error().Err(err).Msg("Failed to upload document to S3")
 					} else {
 						postmap["s3"] = s3Data
 					}
@@ -891,7 +929,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				if s3Config.MediaDelivery == "base64" || s3Config.MediaDelivery == "both" {
 					base64String, mimeType, err := fileToBase64(tmpPath)
 					if err != nil {
-						log.Error().Err(err).Msg("Failed to convert document to base64")
+						// log.Error().Err(err).Msg("Failed to convert document to base64")
+						logger.Error().Err(err).Msg("Failed to convert document to base64")
 						return
 					}
 
@@ -902,14 +941,17 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 
 				// Log the successful conversion
-				log.Info().Str("path", tmpPath).Msg("Document processed")
+				// log.Info().Str("path", tmpPath).Msg("Document processed")
+				logger.Info().Str("path", tmpPath).Msg("Document processed")
 
 				// Delete the temporary file
 				err = os.Remove(tmpPath)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to delete temporary file")
+					// log.Error().Err(err).Msg("Failed to delete temporary file")
+					logger.Error().Err(err).Msg("Failed to delete temporary file")
 				} else {
-					log.Info().Str("path", tmpPath).Msg("Temporary file deleted")
+					// log.Info().Str("path", tmpPath).Msg("Temporary file deleted")
+					logger.Info().Str("path", tmpPath).Msg("Temporary file deleted")
 				}
 			}
 
@@ -920,14 +962,16 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				tmpDirectory := filepath.Join("/tmp", "user_"+txtid)
 				errDir := os.MkdirAll(tmpDirectory, 0751)
 				if errDir != nil {
-					log.Error().Err(errDir).Msg("Could not create temporary directory")
+					// log.Error().Err(errDir).Msg("Could not create temporary directory")
+					logger.Error().Err(errDir).Msg("Could not create temporary directory")
 					return
 				}
 
 				// Download the video
 				data, err := mycli.WAClient.Download(context.Background(), video)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to download video")
+					// log.Error().Err(err).Msg("Failed to download video")
+					logger.Error().Err(err).Msg("Failed to download video")
 					return
 				}
 
@@ -938,7 +982,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				// Write the video to the temporary file
 				err = os.WriteFile(tmpPath, data, 0600)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to save video to temporary file")
+					// log.Error().Err(err).Msg("Failed to save video to temporary file")
+					logger.Error().Err(err).Msg("Failed to save video to temporary file")
 					return
 				}
 
@@ -949,7 +994,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 				err = mycli.db.Get(&s3Config, "SELECT s3_enabled, media_delivery FROM users WHERE id = $1", txtid)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to get S3 config")
+					// log.Error().Err(err).Msg("Failed to get S3 config")
+					logger.Error().Err(err).Msg("Failed to get S3 config")
 					s3Config.Enabled = false
 					s3Config.MediaDelivery = "base64"
 				}
@@ -975,7 +1021,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 						isIncoming,
 					)
 					if err != nil {
-						log.Error().Err(err).Msg("Failed to upload video to S3")
+						// log.Error().Err(err).Msg("Failed to upload video to S3")
+						logger.Error().Err(err).Msg("Failed to upload video to S3")
 					} else {
 						postmap["s3"] = s3Data
 					}
@@ -985,7 +1032,8 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				if s3Config.MediaDelivery == "base64" || s3Config.MediaDelivery == "both" {
 					base64String, mimeType, err := fileToBase64(tmpPath)
 					if err != nil {
-						log.Error().Err(err).Msg("Failed to convert video to base64")
+						// log.Error().Err(err).Msg("Failed to convert video to base64")
+						logger.Error().Err(err).Msg("Failed to convert video to base64")
 						return
 					}
 
@@ -996,14 +1044,17 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 				}
 
 				// Log the successful conversion
-				log.Info().Str("path", tmpPath).Msg("Video processed")
+				// log.Info().Str("path", tmpPath).Msg("Video processed")
+				logger.Info().Str("path", tmpPath).Msg("Video processed")
 
 				// Delete the temporary file
 				err = os.Remove(tmpPath)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to delete temporary file")
+					// log.Error().Err(err).Msg("Failed to delete temporary file")
+					logger.Error().Err(err).Msg("Failed to delete temporary file")
 				} else {
-					log.Info().Str("path", tmpPath).Msg("Temporary file deleted")
+					// log.Info().Str("path", tmpPath).Msg("Temporary file deleted")
+					logger.Info().Str("path", tmpPath).Msg("Temporary file deleted")
 				}
 			}
 		}
@@ -1050,12 +1101,14 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 	case *events.LoggedOut:
 		postmap["type"] = "Logged Out"
 		dowebhook = 1
-		log.Info().Str("reason", evt.Reason.String()).Str("userID", txtid).Msg("Logged out")
+		// log.Info().Str("reason", evt.Reason.String()).Str("userID", txtid).Msg("Logged out")
+		logger.Info().Str("reason", evt.Reason.String()).Str("userID", txtid).Msg("Logged out")
 		killchannel[mycli.userID] <- true
 		sqlStmt := `UPDATE users SET connected=0 WHERE id=$1`
 		_, err := mycli.db.Exec(sqlStmt, mycli.userID)
 		if err != nil {
-			log.Error().Err(err).Msg(sqlStmt)
+			// log.Error().Err(err).Msg(sqlStmt)
+			logger.Error().Err(err).Msg(sqlStmt)
 			return
 		}
 	case *events.ChatPresence:

@@ -53,6 +53,8 @@ var (
 	userinfocache = cache.New(5*time.Minute, 10*time.Minute)
 )
 
+var loggers = make(map[string]zerolog.Logger)
+
 const version = "1.0.0"
 
 func init() {
@@ -150,6 +152,29 @@ func init() {
 	InitRabbitMQ()
 }
 
+func getLoggerForNumber(number string) zerolog.Logger {
+	if logger, exists := loggers[number]; exists {
+		return logger
+	}
+
+	// Cria arquivo separado para o número
+	file, err := os.OpenFile("logs/"+number+".log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		panic(err)
+	}
+
+	logger := zerolog.New(file).With().Timestamp().Logger()
+	loggers[number] = logger
+	return logger
+}
+
+func ensureLogsDirExists() {
+	err := os.MkdirAll("logs", os.ModePerm)
+	if err != nil {
+		panic("Erro ao criar diretório de logs: " + err.Error())
+	}
+}
+
 func main() {
 	ex, err := os.Executable()
 	if err != nil {
@@ -158,6 +183,7 @@ func main() {
 	}
 	exPath := filepath.Dir(ex)
 
+	ensureLogsDirExists()
 	db, err := InitializeDatabase(exPath)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize database")
